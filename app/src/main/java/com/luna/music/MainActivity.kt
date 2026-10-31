@@ -128,8 +128,6 @@ class MainActivity : ComponentActivity() {
                     },
                     previous = {
                         musicPlayer.exoPlayer.seekToPreviousMediaItem()
-                        selectedTrack = tracks.getOrNull(musicPlayer.exoPlayer.currentMediaItemIndex)
-                        scope.launch { currentPalette = themeEngine.paletteFor(selectedTrack?.artworkUri) }
                         isPlaying = true
                     }
                 )
