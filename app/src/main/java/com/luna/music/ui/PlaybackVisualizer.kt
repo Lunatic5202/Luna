@@ -33,9 +33,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.compose.ui.platform.LocalContext
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import com.luna.music.theme.AlbumPalette
@@ -45,7 +45,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-private const val BAR_COUNT = 48
+private const val BAR_COUNT = 64
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -95,7 +95,7 @@ fun PlaybackVisualizer(
                         ) {
                             if (fft.size < 4) return
                             val usable = fft.size - 2
-                            val next = List(BAR_COUNT) { index ->
+                            levelsFlow.value = List(BAR_COUNT) { index ->
                                 val start = 2 + index * usable / BAR_COUNT
                                 val end = (2 + (index + 1) * usable / BAR_COUNT)
                                     .coerceAtMost(fft.size)
@@ -104,13 +104,11 @@ fun PlaybackVisualizer(
                                 while (bin + 1 < end) {
                                     val real = fft[bin].toInt().toFloat()
                                     val imaginary = fft[bin + 1].toInt().toFloat()
-                                    val magnitude = sqrt(real * real + imaginary * imaginary) / 180f
-                                    if (magnitude > peak) peak = magnitude
+                                    peak = maxOf(peak, sqrt(real * real + imaginary * imaginary) / 180f)
                                     bin += 2
                                 }
                                 peak.coerceIn(0.025f, 1f)
                             }
-                            levelsFlow.value = next
                         }
                     },
                     (Visualizer.getMaxCaptureRate() / 2).coerceAtLeast(1),
@@ -132,52 +130,50 @@ fun PlaybackVisualizer(
                     it.enabled = false
                     it.release()
                 } catch (_: RuntimeException) {
-                    // The audio session may already have been released by the player.
+                    // The player may have already released its audio session.
                 }
             }
         }
     }
 
-    // Interpolate every FFT band so the spectrum glides instead of jittering.
     val smoothedLevels = levels.map { level ->
         val animated by animateFloatAsState(
             targetValue = if (enabled && playing) level else 0.025f,
             animationSpec = tween(115, easing = FastOutSlowInEasing),
-            label = "radial-visualizer-level"
+            label = "ellipse-visualizer-level"
         )
         animated
     }
 
     Box(modifier, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
-            val diameter = minOf(size.width, size.height)
-            val radius = diameter * 0.415f
+            val rx = size.width * 0.485f
+            val ry = size.height * 0.46f
             val center = Offset(size.width / 2f, size.height / 2f)
-            drawCircle(
-                color = palette.primary.copy(alpha = 0.13f),
-                radius = radius,
-                center = center,
+            drawOval(
+                color = palette.primary.copy(alpha = 0.20f),
+                topLeft = Offset(center.x - rx, center.y - ry),
+                size = androidx.compose.ui.geometry.Size(rx * 2f, ry * 2f),
                 style = Stroke(width = 1.dp.toPx())
             )
 
             smoothedLevels.forEachIndexed { index, level ->
                 val angle = -PI / 2.0 + (2.0 * PI * index / smoothedLevels.size)
+                val cosAngle = cos(angle).toFloat()
+                val sinAngle = sin(angle).toFloat()
+                val normalX = cosAngle / rx
+                val normalY = sinAngle / ry
+                val normalLength = sqrt(normalX * normalX + normalY * normalY).coerceAtLeast(0.0001f)
+                val nx = normalX / normalLength
+                val ny = normalY / normalLength
+                val start = Offset(center.x + cosAngle * rx, center.y + sinAngle * ry)
                 val strength = if (enabled && playing) level else 0.025f
-                val barLength = diameter * (0.008f + strength * 0.052f)
-                val startRadius = radius - diameter * 0.004f
-                val endRadius = startRadius + barLength
-                val start = Offset(
-                    center.x + cos(angle).toFloat() * startRadius,
-                    center.y + sin(angle).toFloat() * startRadius
-                )
-                val end = Offset(
-                    center.x + cos(angle).toFloat() * endRadius,
-                    center.y + sin(angle).toFloat() * endRadius
-                )
+                val length = minOf(size.width, size.height) * (0.008f + strength * 0.055f)
+                val end = Offset(start.x + nx * length, start.y + ny * length)
                 val blend = index.toFloat() / smoothedLevels.size
                 drawLine(
                     color = androidx.compose.ui.graphics.lerp(palette.primary, palette.secondary, blend)
-                        .copy(alpha = if (enabled && playing) 0.82f else 0.28f),
+                        .copy(alpha = if (enabled && playing) 0.88f else 0.25f),
                     start = start,
                     end = end,
                     strokeWidth = 1.8.dp.toPx(),
