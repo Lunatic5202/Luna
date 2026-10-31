@@ -3,44 +3,50 @@
 
 A native, offline-first Android music player built with Kotlin and Jetpack Compose.
 
-## Included in this starter
-- Local audio discovery through MediaStore
+## Current foundation
+- Local audio discovery through MediaStore (scanned off the UI thread)
 - Android audio permission flow
-- Playback queue using AndroidX Media3 ExoPlayer
-- Album-art URI discovery from MediaStore
-- Palette extraction with AndroidX Palette
-- In-memory artwork palette cache
-- Animated adaptive colour transitions
-- Semantic dynamic Material 3 colour scheme
+- Media3 ExoPlayer owned by a dedicated `MediaSessionService`
+- MediaController connection from the Compose Activity
+- System media session integration for playback notification, lock-screen and headset controls
+- Track metadata and artwork URI supplied to the media session
+- Album-art palette extraction with bounded thumbnail decoding
+- Bounded LRU palette cache with synchronized extraction
+- Animated adaptive colour transitions and semantic Material 3 colours
 - Translucent layered glass surfaces
-- Responsive mini spectrum animation (visual placeholder)
+- Animated mini spectrum placeholder
 
-## Open in Android Studio
-1. Extract this archive.
-2. Open Android Studio and select the `LUNA` folder.
-3. Install Android SDK 36 and use JDK 17.
-4. Let Gradle sync and run the `app` configuration on a device/emulator.
-5. Grant audio permission when prompted.
+## Build
+- Android Studio with Android SDK 36
+- JDK 17
+- Gradle 8.13 or compatible
+- Open the repository as a Gradle project, sync dependencies, then run the `app` configuration on a device or emulator.
+- A GitHub Actions workflow runs `gradle :app:assembleDebug` on pushes and pull requests to `main`.
 
 First build requires internet for Gradle dependencies. Music playback itself is local.
 
-## Important implementation notes
-- The current glass component uses translucent layers and edge highlights. The Haze dependency is included for a subsequent true backdrop-blur pass; its API should be validated against the exact version during that integration.
+## Architecture notes
+- `MainActivity` owns UI state and connects to `LunaPlaybackService` through a Media3 `MediaController`. It does not own or release the player.
+- `LunaPlaybackService` owns the ExoPlayer and MediaSession independently of the Activity lifecycle. Media3 supplies the system media notification and session controls while playback is active.
+- `MusicRepository` queries MediaStore on `Dispatchers.IO`; the Activity collects the result asynchronously.
+- `LunaThemeEngine` extracts and caches album-art palettes. A request token prevents an older artwork decode from replacing the palette for a newer track.
+- The current glass component is translucent layered styling. The Haze dependency is present, but true backdrop blur/refraction is not implemented yet.
 - The mini spectrum is animated UI, not yet connected to actual audio frequencies.
-- Playback is currently Activity-owned. A MediaSessionService is the next required step for reliable background playback, notification and lock-screen controls.
-- Album art is resolved using MediaStore album-art URIs. Devices with missing or unusual metadata use the fallback palette.
-- This is an initial development foundation, not a finished release APK. Build and test on a physical device before distribution.
+- MediaStore album-art URIs may be missing on some devices; LUNA falls back to a default palette.
 
 ## Roadmap
-- [ ] MediaSessionService, notification and lock-screen controls
-- [ ] Real audio-reactive visualizer using audio session effects
-- [ ] True backdrop blur/refraction glass treatment
-- [ ] Full player screen and shared-element artwork transitions
+- [x] MediaSessionService and MediaController foundation
+- [x] System media-session metadata and playback controls
+- [x] Asynchronous local library scan
+- [x] Bounded album palette extraction/cache
+- [ ] Full player screen and artwork transitions
 - [ ] Seek bar, progress and duration
 - [ ] Search, album, artist and folder views
 - [ ] Playlists, queue, shuffle and repeat
+- [ ] True backdrop blur/refraction glass treatment
+- [ ] Audio-reactive visualizer
 - [ ] Sleep timer and equalizer
-- [ ] Persistent palette cache, tests and release polish
+- [ ] Instrumentation tests, device validation and release polish
 
 ## Stack
-Kotlin · Jetpack Compose · Material 3 · Media3 · AndroidX Palette · Haze
+Kotlin · Jetpack Compose · Material 3 · AndroidX Media3 · AndroidX Palette · Haze
