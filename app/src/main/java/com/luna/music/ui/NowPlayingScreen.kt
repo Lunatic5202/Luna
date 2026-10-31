@@ -5,6 +5,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -283,14 +285,21 @@ fun NowPlayingScreen(
                 Column(Modifier.animateContentSize(tween(260))) {
                     AnimatedContent(
                         targetState = track.title,
-                        transitionSpec = { fadeIn(tween(240)) + scaleIn(initialScale = .97f, animationSpec = tween(240)) togetherWith fadeOut(tween(160)) },
+                        transitionSpec = {
+                            (fadeIn(tween(240)) + scaleIn(initialScale = .97f, animationSpec = tween(240)) +
+                                slideInVertically(animationSpec = tween(260, easing = FastOutSlowInEasing)) { it / 4 }) togetherWith
+                                (fadeOut(tween(150)) + slideOutVertically(animationSpec = tween(180)) { -it / 5 })
+                        },
                         label = "now-playing-title"
                     ) { title ->
                         Text(title, color = palette.onBackground, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     AnimatedContent(
                         targetState = track.artist,
-                        transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(140)) },
+                        transitionSpec = {
+                            (fadeIn(tween(220)) + slideInVertically(animationSpec = tween(240)) { it / 3 }) togetherWith
+                                (fadeOut(tween(140)) + slideOutVertically(animationSpec = tween(160)) { -it / 4 })
+                        },
                         label = "now-playing-artist"
                     ) { artist ->
                         Text(artist, color = palette.secondary, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
