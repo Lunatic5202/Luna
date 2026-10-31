@@ -23,12 +23,18 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.AwaitPointerEventScope
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.positionChange
 import kotlin.math.abs
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -99,7 +105,10 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import com.luna.music.ui.LocalLunaHazeState
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -149,6 +158,9 @@ fun NowPlayingScreen(
     val queueSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var volumeVisible by remember { mutableStateOf(false) }
     var showArtworkPeek by remember(track.id) { mutableStateOf(false) }
+    // -1 = previous card highlighted, 0 = none, 1 = next card highlighted while holding the artwork.
+    var peekSelection by remember(track.id) { mutableIntStateOf(0) }
+    val haptic = LocalHapticFeedback.current
     val volumeAlpha by animateFloatAsState(if (volumeVisible) 1f else 0f, animationSpec = tween(180), label = "volume-indicator")
     val progress by animateFloatAsState(position, animationSpec = tween(250, easing = FastOutSlowInEasing), label = "track-progress")
     var volumePercent by remember { mutableFloatStateOf(0f) }
@@ -167,6 +179,11 @@ fun NowPlayingScreen(
         targetValue = if (playing) artworkPulse else 0.93f,
         animationSpec = spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessLow),
         label = "artwork-playing-scale"
+    )
+    val peekScale by animateFloatAsState(
+        targetValue = if (showArtworkPeek) 0.8f else 1f,
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow),
+        label = "artwork-peek-scale"
     )
 
     LaunchedEffect(volumePercent) {
@@ -232,7 +249,8 @@ fun NowPlayingScreen(
                 ArtworkPeekItem(
                     id = item.mediaId,
                     artworkUri = item.mediaMetadata.artworkUri?.toString(),
-                    title = item.mediaMetadata.title?.toString().orEmpty()
+                    title = item.mediaMetadata.title?.toString().orEmpty(),
+                    artist = item.mediaMetadata.artist?.toString().orEmpty()
                 )
             }
     }
@@ -244,7 +262,8 @@ fun NowPlayingScreen(
                 ArtworkPeekItem(
                     id = item.mediaId,
                     artworkUri = item.mediaMetadata.artworkUri?.toString(),
-                    title = item.mediaMetadata.title?.toString().orEmpty()
+                    title = item.mediaMetadata.title?.toString().orEmpty(),
+                    artist = item.mediaMetadata.artist?.toString().orEmpty()
                 )
             }
     }
@@ -340,79 +359,113 @@ fun NowPlayingScreen(
                     )
                     AlbumArtwork(
                         artworkUri = track.artworkUri?.toString(),
-                        modifier = Modifier.lunaSharedArtwork(sharedScope, visibilityScope).fillMaxSize(0.84f).graphicsLayer {
-                            scaleX = artworkScale
-                            scaleY = artworkScale
-                            translationX = dragX.value
-                            rotationZ = dragX.value / 34f
-                        }.clip(CircleShape)
-                            .pointerInput(track.id) {
-                                detectTapGestures(
-                                    onPress = {
-                                        tryAwaitRelease()
+                        modifier = Modifier.lunaSharedArtwork(sharedScope, visibilityScope).fillMaxSize(0.84f)
+                            .pointerInput(controller, track.id, previousArtwork != null, nextArtwork != null) {
+                                val hasPrevious = previousArtwork != null
+                                val hasNext = nextArtwork != null
+                                val chooseDistance = 44.dp.toPx()
+                                awaitEachGesture {
+                                    val down = awaitFirstDown(requireUnconsumed = false)
+                                    val held = awaitHoldOrNull(down)
+                                    if (held != null) {
+                                        // Hold: peek the neighbouring tracks. Slide toward one and release to play it.
+                                        showArtworkPeek = true
+                                        peekSelection = 0
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        val originX = held.position.x
+                                        val finished = drag(held.id) { change ->
+                                            change.consume()
+                                            val dx = change.position.x - originX
+                                            val selection = when {
+                                                dx > chooseDistance && hasNext -> 1
+                                                dx < -chooseDistance && hasPrevious -> -1
+                                                else -> 0
+                                            }
+                                            if (selection != peekSelection) {
+                                                peekSelection = selection
+                                                if (selection != 0) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            }
+                                            val limit = chooseDistance * 1.6f
+                                            scope.launch { dragX.snapTo(dx.coerceIn(-limit, limit) * 0.3f) }
+                                        }
+                                        val chosen = if (finished) peekSelection else 0
                                         showArtworkPeek = false
-                                    },
-                                    onLongPress = { showArtworkPeek = true }
-                                )
-                            }
-                            .pointerInput(controller, track.id) {
-                                var totalX = 0f
-                                var totalY = 0f
-                                var axis = 0
-                                detectDragGestures(
-                                    onDragStart = {
-                                        totalX = 0f
-                                        totalY = 0f
-                                        axis = 0
-                                    },
-                                    onDragEnd = {
-                                        if (axis == 1 && abs(totalX) > 72.dp.toPx()) {
+                                        peekSelection = 0
+                                        scope.launch { dragX.animateTo(0f, spring(dampingRatio = 0.6f, stiffness = 300f)) }
+                                        if (chosen != 0) {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            if (chosen > 0) onNext() else onPrevious()
+                                        }
+                                    } else {
+                                        // Quick drag: swipe sideways to change track, up or down for volume.
+                                        var totalX = 0f
+                                        var totalY = 0f
+                                        var axis = 0
+                                        val finished = drag(down.id) { change ->
+                                            change.consume()
+                                            val amount = change.positionChange()
+                                            totalX += amount.x
+                                            totalY += amount.y
+                                            if (axis == 0 && (abs(totalX) > 10.dp.toPx() || abs(totalY) > 10.dp.toPx())) {
+                                                axis = if (abs(totalX) > abs(totalY)) 1 else 2
+                                            }
+                                            if (axis == 1) {
+                                                scope.launch { dragX.snapTo(totalX * 0.5f) }
+                                            }
+                                            if (axis == 2 && controller != null) {
+                                                val nextVolume = (controller.volume - amount.y / size.height * 1.35f).coerceIn(0f, 1f)
+                                                controller.volume = nextVolume
+                                                volumePercent = nextVolume * 100f
+                                                volumeVisible = true
+                                            }
+                                        }
+                                        if (finished && axis == 1 && abs(totalX) > 72.dp.toPx()) {
                                             if (totalX < 0f) onNext() else onPrevious()
                                         }
                                         scope.launch {
                                             dragX.animateTo(0f, spring(dampingRatio = 0.5f, stiffness = 260f))
                                         }
-                                    },
-                                    onDragCancel = {
-                                        scope.launch {
-                                            dragX.animateTo(0f, spring(dampingRatio = 0.6f, stiffness = 300f))
-                                        }
-                                    },
-                                    onDrag = { change, amount ->
-                                        change.consume()
-                                        totalX += amount.x
-                                        totalY += amount.y
-                                        if (axis == 0 && (abs(totalX) > 10.dp.toPx() || abs(totalY) > 10.dp.toPx())) {
-                                            axis = if (abs(totalX) > abs(totalY)) 1 else 2
-                                        }
-                                        if (axis == 1) {
-                                            scope.launch { dragX.snapTo(totalX * 0.5f) }
-                                        }
-                                        if (axis == 2 && controller != null) {
-                                            val nextVolume = (controller.volume - amount.y / size.height * 1.35f).coerceIn(0f, 1f)
-                                            controller.volume = nextVolume
-                                            volumePercent = nextVolume * 100f
-                                            volumeVisible = true
-                                        }
                                     }
-                                )
-                            },
+                                }
+                            }
+                            .graphicsLayer {
+                                scaleX = artworkScale * peekScale
+                                scaleY = artworkScale * peekScale
+                                translationX = dragX.value
+                                rotationZ = dragX.value / 34f
+                            }.clip(CircleShape),
                         palette = palette,
                         shape = CircleShape
                     )
                     ArtworkPeekOverlay(
                         visible = showArtworkPeek,
                         item = previousArtwork,
+                        caption = "PREVIOUS",
+                        emptyLabel = "Start of queue",
+                        selected = peekSelection < 0,
                         palette = palette,
-                        modifier = Modifier.align(Alignment.CenterStart).offset(x = (-2).dp),
+                        modifier = Modifier.align(Alignment.CenterStart).offset(x = (-8).dp),
                         fromLeft = true
                     )
                     ArtworkPeekOverlay(
                         visible = showArtworkPeek,
                         item = nextArtwork,
+                        caption = "NEXT",
+                        emptyLabel = "End of queue",
+                        selected = peekSelection > 0,
                         palette = palette,
-                        modifier = Modifier.align(Alignment.CenterEnd).offset(x = 2.dp),
+                        modifier = Modifier.align(Alignment.CenterEnd).offset(x = 8.dp),
                         fromLeft = false
+                    )
+                    ArtworkPeekHint(
+                        visible = showArtworkPeek,
+                        text = when {
+                            peekSelection < 0 -> "Release to play previous"
+                            peekSelection > 0 -> "Release to play next"
+                            else -> "Slide to a side and let go"
+                        },
+                        palette = palette,
+                        modifier = Modifier.align(Alignment.BottomCenter).offset(y = 6.dp)
                     )
                     if (volumeAlpha > 0.01f) {
                         Box(
@@ -746,19 +799,28 @@ private fun readQueueItems(controller: MediaController?): List<QueueItemEntry> {
 private data class ArtworkPeekItem(
     val id: String,
     val artworkUri: String?,
-    val title: String
+    val title: String,
+    val artist: String
 )
 
 @Composable
 private fun ArtworkPeekOverlay(
     visible: Boolean,
     item: ArtworkPeekItem?,
+    caption: String,
+    emptyLabel: String,
+    selected: Boolean,
     palette: AlbumPalette,
     modifier: Modifier,
     fromLeft: Boolean
 ) {
+    val cardScale by animateFloatAsState(
+        targetValue = if (selected) 1.1f else 1f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium),
+        label = "peek-card-scale"
+    )
     AnimatedVisibility(
-        visible = visible && item != null,
+        visible = visible,
         modifier = modifier,
         enter = fadeIn(tween(150)) +
             scaleIn(spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)) +
@@ -768,61 +830,138 @@ private fun ArtworkPeekOverlay(
         exit = fadeOut(tween(120)) + scaleOut(animationSpec = tween(180)) +
             slideOutHorizontally(tween(180)) { if (fromLeft) -it / 3 else it / 3 }
     ) {
-        item?.let {
-            ArtworkPeekBubble(
-                item = it,
-                palette = palette,
-                horizontalAlignment = if (fromLeft) Alignment.Start else Alignment.End
+        ArtworkPeekCard(
+            item = item,
+            caption = caption,
+            emptyLabel = emptyLabel,
+            selected = selected,
+            palette = palette,
+            modifier = Modifier.graphicsLayer {
+                scaleX = cardScale
+                scaleY = cardScale
+            }
+        )
+    }
+}
+
+@Composable
+private fun ArtworkPeekCard(
+    item: ArtworkPeekItem?,
+    caption: String,
+    emptyLabel: String,
+    selected: Boolean,
+    palette: AlbumPalette,
+    modifier: Modifier
+) {
+    val ringColor = if (selected) palette.primary else Color.White.copy(alpha = 0.5f)
+    LunaGlassSurface(
+        palette = palette,
+        modifier = modifier.width(108.dp).alpha(if (item == null) 0.62f else 1f),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(
+            Modifier.fillMaxWidth()
+                .background(if (selected) palette.primary.copy(alpha = 0.22f) else Color.Transparent)
+                .padding(horizontal = 10.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                caption,
+                color = if (selected) palette.primary else palette.onBackground.copy(alpha = 0.7f),
+                fontSize = 9.sp,
+                letterSpacing = 1.6.sp,
+                fontWeight = FontWeight.Bold
             )
+            Box(
+                Modifier.size(72.dp)
+                    .clip(CircleShape)
+                    .border(if (selected) 2.dp else 1.dp, ringColor, CircleShape)
+                    .padding(3.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (item != null) {
+                    AlbumArtwork(
+                        artworkUri = item.artworkUri,
+                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                        palette = palette,
+                        shape = CircleShape
+                    )
+                } else {
+                    Text("\u2014", color = palette.onBackground.copy(alpha = 0.6f), fontSize = 24.sp)
+                }
+            }
+            Text(
+                item?.title ?: emptyLabel,
+                modifier = Modifier.fillMaxWidth(),
+                color = palette.onBackground,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (item != null && item.artist.isNotBlank()) {
+                Text(
+                    item.artist,
+                    modifier = Modifier.fillMaxWidth(),
+                    color = palette.onBackground.copy(alpha = 0.7f),
+                    fontSize = 10.sp,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun ArtworkPeekBubble(
-    item: ArtworkPeekItem,
+private fun ArtworkPeekHint(
+    visible: Boolean,
+    text: String,
     palette: AlbumPalette,
-    horizontalAlignment: Alignment.Horizontal
+    modifier: Modifier
 ) {
-    Column(
-        modifier = Modifier.width(92.dp),
-        horizontalAlignment = horizontalAlignment
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = fadeIn(tween(180, delayMillis = 80)) + slideInVertically(tween(220)) { it / 2 },
+        exit = fadeOut(tween(100))
     ) {
-        Box(
-            Modifier.size(70.dp)
-                .shadow(16.dp, CircleShape)
-                .clip(CircleShape)
-                .background(palette.surface)
-                .border(
-                    1.dp,
-                    Brush.linearGradient(
-                        listOf(Color.White.copy(alpha = 0.82f), palette.secondary.copy(alpha = 0.6f))
-                    ),
-                    CircleShape
-                )
-                .padding(4.dp)
-        ) {
-            AlbumArtwork(
-                artworkUri = item.artworkUri,
-                modifier = Modifier.fillMaxSize().clip(CircleShape),
-                palette = palette,
-                shape = CircleShape
+        LunaGlassSurface(palette = palette, shape = RoundedCornerShape(50), refraction = false) {
+            Text(
+                text,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                color = palette.onBackground,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium
             )
         }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            item.title,
-            modifier = Modifier.fillMaxWidth()
-                .background(Color.Black.copy(alpha = 0.38f), RoundedCornerShape(8.dp))
-                .padding(horizontal = 7.dp, vertical = 5.dp),
-            color = Color.White,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Medium,
-            textAlign = if (horizontalAlignment == Alignment.Start) TextAlign.Start else TextAlign.End,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
     }
+}
+
+/**
+ * Waits for [down] to be held still for the system long-press timeout. Returns the latest pointer
+ * state when the hold completes, or null if the finger lifted, moved beyond touch slop or the
+ * gesture was taken over first.
+ */
+private suspend fun AwaitPointerEventScope.awaitHoldOrNull(down: PointerInputChange): PointerInputChange? {
+    var latest = down
+    val interrupted = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+        while (true) {
+            val event = awaitPointerEvent()
+            val change = event.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull true
+            latest = change
+            if (change.isConsumed || !change.pressed) return@withTimeoutOrNull true
+            if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+                return@withTimeoutOrNull true
+            }
+        }
+        @Suppress("UNREACHABLE_CODE")
+        false
+    }
+    return if (interrupted == null) latest else null
 }
 
 private val DOME_HEIGHT = 340.dp
