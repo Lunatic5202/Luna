@@ -68,6 +68,13 @@ class MainActivity : ComponentActivity() {
     private fun loadLibrary() {
         lifecycleScope.launch {
             tracks = repository.loadTracks()
+            // The session may reconnect before the local library scan finishes.
+            mediaController?.currentMediaItem?.let { item ->
+                tracks.firstOrNull { it.id.toString() == item.mediaId }?.let { track ->
+                    selectedTrack = track
+                    updatePaletteFor(track)
+                }
+            }
         }
     }
 
@@ -183,7 +190,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        controllerFuture?.let(MediaController::releaseFuture)
+        controllerFuture?.let { MediaController.releaseFuture(it) }
         mediaController = null
         super.onDestroy()
     }
