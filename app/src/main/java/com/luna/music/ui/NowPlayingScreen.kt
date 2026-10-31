@@ -67,6 +67,7 @@ import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -130,6 +131,7 @@ fun NowPlayingScreen(
     sharedScope: SharedTransitionScope,
     visibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
+    openDrawer: () -> Unit,
     onToggle: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit
@@ -302,7 +304,9 @@ fun NowPlayingScreen(
                     Text("PLAYING", color = palette.secondary, fontSize = 10.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Medium)
                     Text(track.album.ifBlank { "YOUR LIBRARY" }, color = palette.onBackground.copy(alpha = .65f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                Text("\u263E", color = palette.primary, fontSize = 25.sp)
+                IconButton(onClick = openDrawer) {
+                    Icon(Icons.Default.Menu, contentDescription = "Open navigation", tint = palette.onBackground)
+                }
             }
 
             Box(

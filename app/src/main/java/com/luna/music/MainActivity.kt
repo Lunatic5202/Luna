@@ -51,6 +51,11 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -73,6 +78,8 @@ import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import com.luna.music.data.MusicRepository
+import com.luna.music.data.ComboRepository
+import com.luna.music.data.MusicCombo
 import com.luna.music.data.Track
 import com.luna.music.playback.LunaPlaybackService
 import com.luna.music.theme.*
@@ -82,16 +89,22 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.luna.music.ui.AlbumArtwork
 import com.luna.music.ui.NowPlayingScreen
+import com.luna.music.ui.EqualizerScreen
+import com.luna.music.ui.CombosScreen
+import com.luna.music.ui.AboutScreen
 import com.luna.music.ui.LocalLunaHazeState
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 
 private val Muted = Color(0xFFAAA7BA)
 
+private enum class LunaSection { Library, Equalizer, Combos, About }
+
 class MainActivity : ComponentActivity() {
     private var mediaController: MediaController? = null
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private lateinit var repository: MusicRepository
+    private lateinit var comboRepository: ComboRepository
     private lateinit var themeEngine: LunaThemeEngine
     private var tracks by mutableStateOf<List<Track>>(emptyList())
     private var selectedTrack by mutableStateOf<Track?>(null)
@@ -100,6 +113,8 @@ class MainActivity : ComponentActivity() {
     private var currentPalette by mutableStateOf(AlbumPalette.Fallback)
     private var paletteLoadToken = 0
     private var showNowPlaying by mutableStateOf(false)
+    private var currentSection by mutableStateOf(LunaSection.Library)
+    private var combos by mutableStateOf<List<MusicCombo>>(emptyList())
 
     private fun loadLibrary() {
         lifecycleScope.launch {
@@ -131,6 +146,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         repository = MusicRepository(this)
+        comboRepository = ComboRepository(this)
+        combos = comboRepository.load()
         themeEngine = LunaThemeEngine(this)
 
         val permission = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
@@ -172,10 +189,30 @@ class MainActivity : ComponentActivity() {
         setContent {
             val animatedPalette = rememberLunaPalette(currentPalette)
             val hazeState = remember { HazeState() }
-            // Back closes the player instead of leaving the app.
-            BackHandler(enabled = showNowPlaying) { showNowPlaying = false }
-            androidx.compose.runtime.CompositionLocalProvider(LocalLunaHazeState provides hazeState) {
             LunaTheme(animatedPalette) {
+            val drawerState = rememberDrawerState(DrawerValue.Closed)
+            val uiScope = rememberCoroutineScope()
+            val openDrawer: () -> Unit = { uiScope.launch { drawerState.open() } }
+            val closeDrawer: () -> Unit = { uiScope.launch { drawerState.close() } }
+            BackHandler(enabled = showNowPlaying || currentSection != LunaSection.Library) {
+                if (showNowPlaying) showNowPlaying = false else currentSection = LunaSection.Library
+            }
+            ModalNavigationDrawer(
+                drawerState = drawerState,
+                gesturesEnabled = permissionGranted,
+                drawerContent = {
+                    LunaNavigationDrawer(
+                        palette = animatedPalette,
+                        selected = currentSection,
+                        onSelect = { destination ->
+                            currentSection = destination
+                            showNowPlaying = false
+                            closeDrawer()
+                        }
+                    )
+                }
+            ) {
+            androidx.compose.runtime.CompositionLocalProvider(LocalLunaHazeState provides hazeState) {
                 Crossfade(
                     targetState = permissionGranted,
                     animationSpec = tween(560),
@@ -208,6 +245,7 @@ class MainActivity : ComponentActivity() {
                     },
                     label = "screen-transition"
                 ) { showPlayer ->
+                    val screenVisibilityScope = this@AnimatedContent
                     if (showPlayer && selectedTrack != null) {
                     NowPlayingScreen(
                         track = selectedTrack!!,
@@ -215,21 +253,28 @@ class MainActivity : ComponentActivity() {
                         playing = isPlaying,
                         controller = mediaController,
                         sharedScope = this@SharedTransitionLayout,
-                        visibilityScope = this@AnimatedContent,
+                        visibilityScope = screenVisibilityScope,
                         onBack = { showNowPlaying = false },
+                        openDrawer = openDrawer,
                         onToggle = { if (mediaController?.isPlaying == true) mediaController?.pause() else mediaController?.play() },
                         onNext = { mediaController?.seekToNextMediaItem() },
                         onPrevious = { mediaController?.seekToPreviousMediaItem() }
                     )
                     } else {
-                    LunaHome(
+                    AnimatedContent(
+                        targetState = currentSection,
+                        transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(160)) },
+                        label = "library-sections"
+                    ) { section -> when (section) {
+                    LunaSection.Library -> LunaHome(
                         tracks = tracks,
                         selectedTrack = selectedTrack,
                         playing = isPlaying,
                         palette = animatedPalette,
                         sharedScope = this@SharedTransitionLayout,
-                        visibilityScope = this@AnimatedContent,
+                        visibilityScope = screenVisibilityScope,
                         openNowPlaying = { showNowPlaying = true },
+                        openDrawer = openDrawer,
                         play = { track ->
                             val index = tracks.indexOf(track).coerceAtLeast(0)
                             val mediaItems = tracks.map { item ->
@@ -272,14 +317,54 @@ class MainActivity : ComponentActivity() {
                             isPlaying = true
                         }
                     )
+                    LunaSection.Equalizer -> EqualizerScreen(animatedPalette, openDrawer)
+                    LunaSection.Combos -> CombosScreen(
+                        palette = animatedPalette,
+                        tracks = tracks,
+                        combos = combos,
+                        openDrawer = openDrawer,
+                        onCreate = { name, ids -> combos = comboRepository.create(name, ids) },
+                        onDelete = { id -> combos = comboRepository.delete(id) },
+                        onPlay = { combo ->
+                            val comboTracks = combo.trackIds.mapNotNull { id -> tracks.firstOrNull { it.id == id } }
+                            if (comboTracks.isNotEmpty()) {
+                                val mediaItems = comboTracks.map { item ->
+                                    MediaItem.Builder()
+                                        .setUri(item.uri)
+                                        .setMediaId(item.id.toString())
+                                        .setMediaMetadata(
+                                            MediaMetadata.Builder()
+                                                .setTitle(item.title)
+                                                .setArtist(item.artist)
+                                                .setAlbumTitle(item.album)
+                                                .apply { item.artworkUri?.let(::setArtworkUri) }
+                                                .build()
+                                        )
+                                        .build()
+                                }
+                                mediaController?.let { controller ->
+                                    controller.setMediaItems(mediaItems, 0, 0L)
+                                    controller.prepare()
+                                    controller.play()
+                                }
+                                selectedTrack = comboTracks.first()
+                                currentSection = LunaSection.Library
+                                updatePaletteFor(comboTracks.first())
+                                showNowPlaying = true
+                            }
+                        }
+                    )
+                    LunaSection.About -> AboutScreen(animatedPalette, openDrawer)
+                    } }
                     }
                 }
                 }
                 }
-                }
-            }
             }
         }
+            }
+            }
+    }
     }
 
     override fun onDestroy() {
@@ -358,7 +443,8 @@ private fun LunaHome(
     previous: () -> Unit,
     sharedScope: SharedTransitionScope,
     visibilityScope: AnimatedVisibilityScope,
-    openNowPlaying: () -> Unit
+    openNowPlaying: () -> Unit,
+    openDrawer: () -> Unit
 ) {
     val liquidBackdrop = rememberLayerBackdrop()
     CompositionLocalProvider(LocalLunaLiquidBackdrop provides liquidBackdrop) {
@@ -376,7 +462,9 @@ private fun LunaHome(
                 Column(Modifier.weight(1f)) {
                     Text("L U N A", color = palette.onBackground, fontSize = 26.sp, fontWeight = FontWeight.Black, letterSpacing = 5.sp)
                 }
-                Text("☾", color = palette.primary, fontSize = 32.sp)
+                IconButton(onClick = openDrawer) {
+                    Icon(Icons.Default.Menu, contentDescription = "Open navigation", tint = palette.onBackground)
+                }
             }
             Spacer(Modifier.height(30.dp))
             Text("Library", color = palette.onBackground, fontSize = 23.sp, fontWeight = FontWeight.SemiBold)
@@ -491,5 +579,57 @@ private fun LunaHome(
         }
     }
     }
+}
+
+@Composable
+private fun LunaNavigationDrawer(
+    palette: AlbumPalette,
+    selected: LunaSection,
+    onSelect: (LunaSection) -> Unit
+) {
+    ModalDrawerSheet(modifier = Modifier.width(304.dp)) {
+        Column(
+            Modifier.fillMaxSize()
+                .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = 0.55f), palette.background, Color(0xFF07080D))))
+                .padding(horizontal = 18.dp, vertical = 26.dp)
+        ) {
+            Text("L U N A", color = palette.onBackground, fontSize = 24.sp, fontWeight = FontWeight.Black, letterSpacing = 4.sp)
+            Spacer(Modifier.height(6.dp))
+            Text("Your music, your space.", color = palette.onBackground.copy(alpha = 0.78f), fontSize = 13.sp)
+            Spacer(Modifier.height(28.dp))
+            Text("YOUR SPACE", color = palette.onBackground.copy(alpha = 0.68f), fontSize = 10.sp, letterSpacing = 1.7.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 14.dp, bottom = 8.dp))
+            LunaDrawerItem(palette, selected == LunaSection.Library, "Library", Icons.Default.LibraryMusic) { onSelect(LunaSection.Library) }
+            LunaDrawerItem(palette, selected == LunaSection.Equalizer, "Equalizer", Icons.Default.GraphicEq) { onSelect(LunaSection.Equalizer) }
+            LunaDrawerItem(palette, selected == LunaSection.Combos, "Combos", Icons.Default.QueueMusic) { onSelect(LunaSection.Combos) }
+            Spacer(Modifier.height(14.dp))
+            LunaDrawerItem(palette, selected == LunaSection.About, "About", Icons.Default.Info) { onSelect(LunaSection.About) }
+            Spacer(Modifier.weight(1f))
+            Text("Built by Lunatic", color = palette.onBackground.copy(alpha = 0.68f), fontSize = 12.sp, modifier = Modifier.padding(start = 14.dp, top = 18.dp))
+        }
+    }
+}
+
+@Composable
+private fun LunaDrawerItem(
+    palette: AlbumPalette,
+    selected: Boolean,
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    NavigationDrawerItem(
+        selected = selected,
+        onClick = onClick,
+        icon = { Icon(icon, contentDescription = null) },
+        label = { Text(label, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium) },
+        colors = NavigationDrawerItemDefaults.colors(
+            selectedContainerColor = palette.primary.copy(alpha = 0.22f),
+            unselectedContainerColor = Color.Transparent,
+            selectedIconColor = palette.onBackground,
+            unselectedIconColor = palette.onBackground.copy(alpha = 0.78f),
+            selectedTextColor = palette.onBackground,
+            unselectedTextColor = palette.onBackground.copy(alpha = 0.88f)
+        )
+    )
 }
 
