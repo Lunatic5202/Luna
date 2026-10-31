@@ -25,12 +25,14 @@ class LunaPlaybackService : MediaSessionService() {
         // Service and UI share a process, so publish the audio session id directly.
         // (A MediaController cannot read it across the session boundary.)
         _audioSessionId.value = player.audioSessionId
+        LunaEqualizerEngine.attach(this, player.audioSessionId)
         player.addAnalyticsListener(object : AnalyticsListener {
             override fun onAudioSessionIdChanged(
                 eventTime: AnalyticsListener.EventTime,
                 audioSessionId: Int
             ) {
                 _audioSessionId.value = audioSessionId
+                LunaEqualizerEngine.attach(this@LunaPlaybackService, audioSessionId)
             }
         })
         mediaSession = MediaSession.Builder(this, player).build()
@@ -41,6 +43,7 @@ class LunaPlaybackService : MediaSessionService() {
 
     override fun onDestroy() {
         _audioSessionId.value = 0
+        LunaEqualizerEngine.detach()
         mediaSession?.run {
             player.release()
             release()
@@ -56,3 +59,4 @@ class LunaPlaybackService : MediaSessionService() {
         val audioSessionId: StateFlow<Int> = _audioSessionId.asStateFlow()
     }
 }
+
