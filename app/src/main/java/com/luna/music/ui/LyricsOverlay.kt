@@ -156,7 +156,7 @@ fun LyricsOverlay(
                 shape = CircleShape,
                 modifier = Modifier.fillMaxWidth().aspectRatio(1f).align(Alignment.Center)
                     .graphicsLayer { rotationZ = rotation; scaleX = 1.12f; scaleY = 1.12f }
-                    .blur(48.dp).alpha(.26f)
+                    .blur(22.dp).alpha(.22f)
             )
             Box(
                 Modifier.fillMaxSize().background(

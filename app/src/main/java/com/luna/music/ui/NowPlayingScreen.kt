@@ -295,7 +295,7 @@ fun NowPlayingScreen(
         )
         AlbumArtwork(
             artworkUri = track.artworkUri?.toString(),
-            modifier = Modifier.fillMaxSize().blur(24.dp).alpha(0.22f),
+            modifier = Modifier.fillMaxSize().blur(16.dp).alpha(0.20f),
             palette = palette,
             shape = RectangleShape
         )

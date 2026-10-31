@@ -2,10 +2,11 @@ package com.luna.music.data
 
 import android.content.ContentUris
 import android.content.Context
-import android.net.Uri
 import android.provider.MediaStore
 import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
@@ -16,10 +17,7 @@ class MusicRepository(private val context: Context) {
         "audio/amr", "audio/alac", "audio/x-m4a"
     )
 
-    /**
-     * MediaStore's IS_MUSIC flag is only a first-pass hint. Verify the MIME,
-     * size, duration, metadata and file signature before exposing a track.
-     */
+    /** Uses MediaStore's indexed audio metadata to avoid opening every file during a scan. */
     suspend fun loadTracks(): List<Track> = withContext(Dispatchers.IO) {
         val collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(
@@ -36,6 +34,7 @@ class MusicRepository(private val context: Context) {
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.SIZE} > 8192 AND ${MediaStore.Audio.Media.DURATION} >= 15000"
         val sortOrder = "${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
         val result = mutableListOf<Track>()
+        val coroutineContext = currentCoroutineContext()
 
         try {
             context.contentResolver.query(collection, projection, selection, null, sortOrder)?.use { cursor ->
@@ -49,7 +48,9 @@ class MusicRepository(private val context: Context) {
                 val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
                 val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
 
+                var scanned = 0
                 while (cursor.moveToNext()) {
+                    if (scanned++ % 64 == 0) coroutineContext.ensureActive()
                     val id = cursor.getLong(idCol)
                     val title = cursor.getString(titleCol)?.trim().orEmpty()
                     val artist = cursor.getString(artistCol)?.trim().orEmpty()
@@ -62,9 +63,6 @@ class MusicRepository(private val context: Context) {
                     if (mime == null || mime !in acceptedMimeTypes) continue
                     if (title.isBlank() || isGenericAudioLabel(title) || isGenericAudioLabel(displayName)) continue
 
-                    val uri = ContentUris.withAppendedId(collection, id)
-                    if (!hasRecognizedAudioSignature(uri, mime.orEmpty())) continue
-
                     val albumId = cursor.getLong(albumIdCol)
                     val artwork = ContentUris.withAppendedId(
                         "content://media/external/audio/albumart".toUri(), albumId
@@ -74,7 +72,7 @@ class MusicRepository(private val context: Context) {
                         title = title,
                         artist = artist.ifBlank { "Unknown artist" },
                         album = cursor.getString(albumCol)?.takeIf { it.isNotBlank() } ?: "Unknown album",
-                        uri = uri,
+                        uri = ContentUris.withAppendedId(collection, id),
                         artworkUri = if (albumId > 0L) artwork else null
                     )
                 }
@@ -100,36 +98,4 @@ class MusicRepository(private val context: Context) {
             normalized.startsWith("audio_") || normalized.startsWith("audio ")
     }
 
-    private fun hasRecognizedAudioSignature(uri: Uri, mime: String): Boolean {
-        return try {
-            val header = context.contentResolver.openInputStream(uri)?.use { input ->
-                ByteArray(16).also { buffer ->
-                    var offset = 0
-                    while (offset < buffer.size) {
-                        val count = input.read(buffer, offset, buffer.size - offset)
-                        if (count <= 0) break
-                        offset += count
-                    }
-                }
-            } ?: return false
-
-            val ascii = header.toString(Charsets.ISO_8859_1)
-            when (mime) {
-                "audio/flac" -> ascii.startsWith("fLaC")
-                "audio/ogg", "audio/opus" -> ascii.startsWith("OggS")
-                "audio/wav", "audio/x-wav" -> ascii.startsWith("RIFF") && ascii.substring(8, 12) == "WAVE"
-                "audio/mp4", "audio/x-m4a", "audio/alac" -> ascii.substring(4, 8) == "ftyp"
-                "audio/aac" -> header.size >= 2 && header[0] == 0xFF.toByte() &&
-                    (header[1].toInt() and 0xF6) == 0xF0
-                "audio/mpeg", "audio/mp3" -> ascii.startsWith("ID3") ||
-                    (header.size >= 2 && header[0] == 0xFF.toByte() &&
-                        (header[1].toInt() and 0xE0) == 0xE0)
-                "audio/3gpp", "audio/amr" -> ascii.startsWith("#!AMR") ||
-                    ascii.substring(4, 8) == "ftyp"
-                else -> false
-            }
-        } catch (_: Exception) {
-            false
-        }
-    }
 }
