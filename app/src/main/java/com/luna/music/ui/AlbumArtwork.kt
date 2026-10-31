@@ -47,7 +47,7 @@ import kotlinx.coroutines.withContext
 private object AlbumArtworkCache {
     private const val MAX_DECODED_DIMENSION = 768
 
-    private val memory = LruCache<String, Bitmap>(
+    private val memory = object : LruCache<String, Bitmap>(
         (Runtime.getRuntime().maxMemory() / 1024L / 8L).coerceAtMost(64L * 1024L).toInt()
     ) {
         override fun sizeOf(key: String, value: Bitmap): Int =
@@ -78,8 +78,7 @@ private object AlbumArtworkCache {
 
                 var sampleSize = 1
                 while (
-                    bounds.outWidth / (sampleSize * 2) >= MAX_DECODED_DIMENSION &&
-                    bounds.outHeight / (sampleSize * 2) >= MAX_DECODED_DIMENSION
+                    maxOf(bounds.outWidth, bounds.outHeight) / (sampleSize * 2) >= MAX_DECODED_DIMENSION
                 ) {
                     sampleSize *= 2
                 }
