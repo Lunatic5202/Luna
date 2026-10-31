@@ -1,12 +1,15 @@
 package com.luna.music.ui
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -18,8 +21,11 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlin.math.abs
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +42,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -81,6 +88,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.RectangleShape
 import com.luna.music.ui.LocalLunaHazeState
@@ -120,6 +128,7 @@ fun NowPlayingScreen(
     var showQueue by remember { mutableStateOf(false) }
     val queueSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var volumeVisible by remember { mutableStateOf(false) }
+    var showArtworkPeek by remember(track.id) { mutableStateOf(false) }
     val volumeAlpha by animateFloatAsState(if (volumeVisible) 1f else 0f, animationSpec = tween(180), label = "volume-indicator")
     val progress by animateFloatAsState(position, animationSpec = tween(250, easing = FastOutSlowInEasing), label = "track-progress")
     var volumePercent by remember { mutableFloatStateOf(0f) }
@@ -156,6 +165,31 @@ fun NowPlayingScreen(
             }
             delay(400)
         }
+    }
+
+    val previousArtwork = controller?.let { player ->
+        player.previousMediaItemIndex
+            .takeIf { it >= 0 && it < player.mediaItemCount }
+            ?.let(player::getMediaItemAt)
+            ?.let { item ->
+                ArtworkPeekItem(
+                    id = item.mediaId,
+                    artworkUri = item.mediaMetadata.artworkUri?.toString(),
+                    title = item.mediaMetadata.title?.toString().orEmpty()
+                )
+            }
+    }
+    val nextArtwork = controller?.let { player ->
+        player.nextMediaItemIndex
+            .takeIf { it >= 0 && it < player.mediaItemCount }
+            ?.let(player::getMediaItemAt)
+            ?.let { item ->
+                ArtworkPeekItem(
+                    id = item.mediaId,
+                    artworkUri = item.mediaMetadata.artworkUri?.toString(),
+                    title = item.mediaMetadata.title?.toString().orEmpty()
+                )
+            }
     }
 
     Box(
@@ -246,6 +280,15 @@ fun NowPlayingScreen(
                             translationX = dragX.value
                             rotationZ = dragX.value / 34f
                         }.clip(CircleShape)
+                            .pointerInput(track.id) {
+                                detectTapGestures(
+                                    onPress = {
+                                        tryAwaitRelease()
+                                        showArtworkPeek = false
+                                    },
+                                    onLongPress = { showArtworkPeek = true }
+                                )
+                            }
                             .pointerInput(controller, track.id) {
                                 var totalX = 0f
                                 var totalY = 0f
@@ -290,6 +333,20 @@ fun NowPlayingScreen(
                             },
                         palette = palette,
                         shape = CircleShape
+                    )
+                    ArtworkPeekOverlay(
+                        visible = showArtworkPeek,
+                        item = previousArtwork,
+                        palette = palette,
+                        modifier = Modifier.align(Alignment.CenterStart).offset(x = (-2).dp),
+                        fromLeft = true
+                    )
+                    ArtworkPeekOverlay(
+                        visible = showArtworkPeek,
+                        item = nextArtwork,
+                        palette = palette,
+                        modifier = Modifier.align(Alignment.CenterEnd).offset(x = 2.dp),
+                        fromLeft = false
                     )
                     if (volumeAlpha > 0.01f) {
                         Box(
@@ -498,6 +555,113 @@ fun NowPlayingScreen(
                 }
             }
         }
+        // Keep the dismiss gesture in a narrow top strip so it does not compete
+        // with artwork swipes, the seek bar, or the player controls.
+        Box(
+            Modifier.align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(44.dp)
+                .pointerInput(onBack) {
+                    var dragDistance = 0f
+                    var dismissed = false
+                    detectVerticalDragGestures(
+                        onDragStart = {
+                            dragDistance = 0f
+                            dismissed = false
+                        },
+                        onVerticalDrag = { change, amount ->
+                            dragDistance += amount
+                            if (!dismissed && dragDistance >= 72.dp.toPx()) {
+                                dismissed = true
+                                change.consume()
+                                onBack()
+                            }
+                        }
+                    )
+                }
+        )
+    }
+}
+
+private data class ArtworkPeekItem(
+    val id: String,
+    val artworkUri: String?,
+    val title: String
+)
+
+@Composable
+private fun ArtworkPeekOverlay(
+    visible: Boolean,
+    item: ArtworkPeekItem?,
+    palette: AlbumPalette,
+    modifier: Modifier,
+    fromLeft: Boolean
+) {
+    AnimatedVisibility(
+        visible = visible && item != null,
+        modifier = modifier,
+        enter = fadeIn(tween(150)) +
+            scaleIn(spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)) +
+            slideInHorizontally(tween(260, easing = FastOutSlowInEasing)) {
+                if (fromLeft) -it / 2 else it / 2
+            },
+        exit = fadeOut(tween(120)) + scaleOut(animationSpec = tween(180)) +
+            slideOutHorizontally(tween(180)) { if (fromLeft) -it / 3 else it / 3 }
+    ) {
+        item?.let {
+            ArtworkPeekBubble(
+                item = it,
+                palette = palette,
+                horizontalAlignment = if (fromLeft) Alignment.Start else Alignment.End
+            )
+        }
+    }
+}
+
+@Composable
+private fun ArtworkPeekBubble(
+    item: ArtworkPeekItem,
+    palette: AlbumPalette,
+    horizontalAlignment: Alignment.Horizontal
+) {
+    Column(
+        modifier = Modifier.width(92.dp),
+        horizontalAlignment = horizontalAlignment
+    ) {
+        Box(
+            Modifier.size(70.dp)
+                .shadow(16.dp, CircleShape)
+                .clip(CircleShape)
+                .background(palette.surface)
+                .border(
+                    1.dp,
+                    Brush.linearGradient(
+                        listOf(Color.White.copy(alpha = 0.82f), palette.secondary.copy(alpha = 0.6f))
+                    ),
+                    CircleShape
+                )
+                .padding(4.dp)
+        ) {
+            AlbumArtwork(
+                artworkUri = item.artworkUri,
+                modifier = Modifier.fillMaxSize().clip(CircleShape),
+                palette = palette,
+                shape = CircleShape
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            item.title,
+            modifier = Modifier.fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.38f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 7.dp, vertical = 5.dp),
+            color = Color.White,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = if (horizontalAlignment == Alignment.Start) TextAlign.Start else TextAlign.End,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -507,3 +671,4 @@ private fun formatTime(milliseconds: Long): String {
     val totalSeconds = (milliseconds / 1000L).coerceAtLeast(0L)
     return "%d:%02d".format(totalSeconds / 60L, totalSeconds % 60L)
 }
+
