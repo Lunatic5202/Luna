@@ -402,9 +402,10 @@ private fun LunaHome(
                             label = "library-row-selection"
                         )
                         Row(
-                            Modifier.fillMaxWidth().animateItem()
-                                .then(if (animateEntrance) Modifier.staggeredEntrance(index) else Modifier)
-                                .animateContentSize(tween(260))
+                            Modifier.fillMaxWidth()
+                                // Keep the welcome motion restrained: layers on every row
+                                // remain in the scrolling path even after their entrance ends.
+                                .then(if (animateEntrance && index < 5) Modifier.staggeredEntrance(index, 55L) else Modifier)
                                 .bouncyClickable(RoundedCornerShape(17.dp), rowColor) { play(track) }
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
