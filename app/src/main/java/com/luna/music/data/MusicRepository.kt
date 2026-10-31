@@ -90,8 +90,11 @@ class MusicRepository(private val context: Context) {
         val normalized = value.substringBeforeLast('.', value)
             .trim()
             .lowercase(Locale.ROOT)
-        return normalized.matches(Regex("audio[-_ ]?.{0,32}")) &&
-            (normalized == "audio" || normalized.startsWith("audio-") || normalized.startsWith("audio_"))
+        // MediaStore sometimes exposes recordings/cache entries as AUD-... or AUDIO-...
+        return normalized == "aud" || normalized == "audio" ||
+            normalized.startsWith("aud-") || normalized.startsWith("aud_") ||
+            normalized.startsWith("aud ") || normalized.startsWith("audio-") ||
+            normalized.startsWith("audio_") || normalized.startsWith("audio ")
     }
 
     private fun hasRecognizedAudioSignature(uri: Uri, mime: String): Boolean {
