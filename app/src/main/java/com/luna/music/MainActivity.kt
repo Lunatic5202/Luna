@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalSharedTransitionApi::class)
+
 package com.luna.music
 
 import android.Manifest
@@ -5,7 +7,22 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.unit.IntOffset
+import com.luna.music.ui.EqualizerBars
+import com.luna.music.ui.bouncyClickable
+import com.luna.music.ui.lunaSharedArtwork
+import com.luna.music.ui.staggeredEntrance
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -151,19 +168,36 @@ class MainActivity : ComponentActivity() {
         setContent {
             val animatedPalette = rememberLunaPalette(currentPalette)
             val hazeState = remember { HazeState() }
+            // Back closes the player instead of leaving the app.
+            BackHandler(enabled = showNowPlaying) { showNowPlaying = false }
             androidx.compose.runtime.CompositionLocalProvider(LocalLunaHazeState provides hazeState) {
             LunaTheme(animatedPalette) {
-                if (!permissionGranted) {
+                Crossfade(
+                    targetState = permissionGranted,
+                    animationSpec = tween(560),
+                    label = "intro-to-library"
+                ) { granted ->
+                if (!granted) {
                     LunaPermissionIntro(
                         palette = animatedPalette,
                         requestPermission = { permissionLauncher.launch(permission) }
                     )
                 } else {
+                SharedTransitionLayout {
                 AnimatedContent(
                     targetState = showNowPlaying && selectedTrack != null,
                     transitionSpec = {
-                        (fadeIn(tween(300)) + slideInVertically { it / 14 }) togetherWith
-                            (fadeOut(tween(180)) + slideOutVertically { -it / 28 })
+                        if (targetState) {
+                            (fadeIn(tween(420, easing = FastOutSlowInEasing)) +
+                                scaleIn(initialScale = .96f, animationSpec = tween(520, easing = FastOutSlowInEasing))) togetherWith
+                                (fadeOut(tween(260)) +
+                                    scaleOut(targetScale = 1.04f, animationSpec = tween(420, easing = FastOutSlowInEasing)))
+                        } else {
+                            (fadeIn(tween(380, delayMillis = 60)) +
+                                scaleIn(initialScale = 1.04f, animationSpec = tween(480, easing = FastOutSlowInEasing))) togetherWith
+                                (fadeOut(tween(240)) +
+                                    scaleOut(targetScale = .96f, animationSpec = tween(420, easing = FastOutSlowInEasing)))
+                        }
                     },
                     label = "screen-transition"
                 ) { showPlayer ->
@@ -173,18 +207,21 @@ class MainActivity : ComponentActivity() {
                         palette = animatedPalette,
                         playing = isPlaying,
                         controller = mediaController,
+                        sharedScope = this@SharedTransitionLayout,
+                        visibilityScope = this@AnimatedContent,
                         onBack = { showNowPlaying = false },
                         onToggle = { if (mediaController?.isPlaying == true) mediaController?.pause() else mediaController?.play() },
                         onNext = { mediaController?.seekToNextMediaItem() },
                         onPrevious = { mediaController?.seekToPreviousMediaItem() }
                     )
-
                     } else {
-LunaHome(
+                    LunaHome(
                         tracks = tracks,
                         selectedTrack = selectedTrack,
                         playing = isPlaying,
                         palette = animatedPalette,
+                        sharedScope = this@SharedTransitionLayout,
+                        visibilityScope = this@AnimatedContent,
                         openNowPlaying = { showNowPlaying = true },
                         play = { track ->
                             val index = tracks.indexOf(track).coerceAtLeast(0)
@@ -231,6 +268,8 @@ LunaHome(
                     }
                 }
                 }
+                }
+                }
             }
             }
         }
@@ -261,30 +300,36 @@ private fun LunaPermissionIntro(
             horizontalAlignment = Alignment.Start
         ) {
             Text("L U N A", color = palette.onBackground, fontSize = 30.sp,
-                fontWeight = FontWeight.Bold, letterSpacing = 6.sp)
+                fontWeight = FontWeight.Bold, letterSpacing = 6.sp,
+                modifier = Modifier.staggeredEntrance(0, 110))
             Spacer(Modifier.height(42.dp))
             Text("Your music. Your space.", color = palette.onBackground,
-                fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
+                fontSize = 28.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.staggeredEntrance(1, 110))
             Spacer(Modifier.height(28.dp))
-            Text("NEEDED", color = palette.secondary, fontSize = 10.sp,
-                letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(10.dp))
-            Text("Music library", color = palette.onBackground,
-                fontSize = 17.sp, fontWeight = FontWeight.Medium)
-            Text("Find and play music stored on this device.",
-                color = palette.onBackground.copy(alpha = .58f), fontSize = 13.sp)
+            Column(Modifier.staggeredEntrance(2, 110)) {
+                Text("NEEDED", color = palette.secondary, fontSize = 10.sp,
+                    letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(10.dp))
+                Text("Music library", color = palette.onBackground,
+                    fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                Text("Find and play music stored on this device.",
+                    color = palette.onBackground.copy(alpha = .58f), fontSize = 13.sp)
+            }
             Spacer(Modifier.height(24.dp))
-            Text("OPTIONAL", color = palette.secondary, fontSize = 10.sp,
-                letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(10.dp))
-            Text("Playback visualizer", color = palette.onBackground,
-                fontSize = 17.sp, fontWeight = FontWeight.Medium)
-            Text("Android may show a microphone permission. It is used only to read this player's audio session; LUNA does not record your voice.",
-                color = palette.onBackground.copy(alpha = .58f), fontSize = 13.sp)
+            Column(Modifier.staggeredEntrance(3, 110)) {
+                Text("OPTIONAL", color = palette.secondary, fontSize = 10.sp,
+                    letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(10.dp))
+                Text("Playback visualizer", color = palette.onBackground,
+                    fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                Text("Android may show a microphone permission. It is used only to read this player's audio session; LUNA does not record your voice.",
+                    color = palette.onBackground.copy(alpha = .58f), fontSize = 13.sp)
+            }
             Spacer(Modifier.height(34.dp))
             Button(
                 onClick = requestPermission,
-                modifier = Modifier.fillMaxWidth().height(54.dp),
+                modifier = Modifier.fillMaxWidth().height(54.dp).staggeredEntrance(4, 110),
                 shape = RoundedCornerShape(18.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = palette.primary)
             ) {
@@ -304,6 +349,8 @@ private fun LunaHome(
     toggle: () -> Unit,
     next: () -> Unit,
     previous: () -> Unit,
+    sharedScope: SharedTransitionScope,
+    visibilityScope: AnimatedVisibilityScope,
     openNowPlaying: () -> Unit
 ) {
     Box(
@@ -329,7 +376,7 @@ private fun LunaHome(
             } else {
                 val libraryListState = rememberLazyListState()
                 LazyColumn(Modifier.weight(1f), state = libraryListState, verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    items(tracks, key = { it.id }) { track ->
+                    itemsIndexed(tracks, key = { _, item -> item.id }) { index, track ->
                         val isSelected = selectedTrack?.id == track.id
                         val rowColor by animateColorAsState(
                             targetValue = if (isSelected) palette.primary.copy(alpha = .19f) else Color.White.copy(alpha = .045f),
@@ -337,10 +384,10 @@ private fun LunaHome(
                             label = "library-row-selection"
                         )
                         Row(
-                            Modifier.fillMaxWidth().animateItem().animateContentSize(tween(260))
-                                .clip(RoundedCornerShape(17.dp))
-                                .background(rowColor)
-                                .clickable { play(track) }.padding(12.dp),
+                            Modifier.fillMaxWidth().animateItem().staggeredEntrance(index)
+                                .animateContentSize(tween(260))
+                                .bouncyClickable(RoundedCornerShape(17.dp), rowColor) { play(track) }
+                                .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             AlbumArtwork(track.artworkUri?.toString(), Modifier.size(46.dp), palette)
@@ -354,7 +401,7 @@ private fun LunaHome(
                                 enter = fadeIn(tween(180)) + scaleIn(initialScale = .88f, animationSpec = tween(180)),
                                 exit = fadeOut(tween(140)) + scaleOut(targetScale = .88f, animationSpec = tween(140))
                             ) {
-                                Text("PLAYING", color = palette.secondary, fontSize = 9.sp)
+                                EqualizerBars(palette.secondary, playing)
                             }
                         }
                     }
@@ -363,7 +410,9 @@ private fun LunaHome(
 
             AnimatedVisibility(
                 visible = selectedTrack != null,
-                enter = fadeIn(tween(260)) + slideInVertically(tween(260)) { it / 2 } + expandVertically(tween(260)),
+                enter = fadeIn(tween(300)) +
+                    slideInVertically(spring<IntOffset>(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)) { it } +
+                    expandVertically(tween(300)),
                 exit = fadeOut(tween(180)) + slideOutVertically(tween(180)) { it / 3 } + shrinkVertically(tween(180))
             ) {
                 selectedTrack?.let { track ->
@@ -371,7 +420,7 @@ private fun LunaHome(
                     LunaGlassSurface(palette, Modifier.fillMaxWidth()) {
                         Column(Modifier.clickable(onClick = openNowPlaying).animateContentSize(tween(240)).padding(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                AlbumArtwork(track.artworkUri?.toString(), Modifier.size(48.dp), palette)
+                                AlbumArtwork(track.artworkUri?.toString(), Modifier.lunaSharedArtwork(sharedScope, visibilityScope).size(48.dp), palette, CircleShape)
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
                                     AnimatedContent(
