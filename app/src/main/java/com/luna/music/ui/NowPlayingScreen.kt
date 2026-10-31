@@ -1,8 +1,20 @@
 package com.luna.music.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -62,6 +74,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.RectangleShape
 import com.luna.music.ui.LocalLunaHazeState
 import dev.chrisbanes.haze.hazeSource
@@ -93,6 +106,20 @@ fun NowPlayingScreen(
     val volumeAlpha by animateFloatAsState(if (volumeVisible) 1f else 0f, animationSpec = tween(180), label = "volume-indicator")
     val progress by animateFloatAsState(position, animationSpec = tween(250, easing = FastOutSlowInEasing), label = "track-progress")
     var volumePercent by remember { mutableFloatStateOf(0f) }
+    val artworkPulse by rememberInfiniteTransition(label = "artwork-pulse").animateFloat(
+        initialValue = 1f,
+        targetValue = 1.018f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1900, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "artwork-pulse-scale"
+    )
+    val artworkScale by animateFloatAsState(
+        targetValue = if (playing) artworkPulse else 1f,
+        animationSpec = tween(420, easing = FastOutSlowInEasing),
+        label = "artwork-playing-scale"
+    )
 
     LaunchedEffect(volumePercent) {
         if (volumeVisible) {
@@ -155,7 +182,10 @@ fun NowPlayingScreen(
             ) {
                 AlbumArtwork(
                     artworkUri = track.artworkUri?.toString(),
-                    modifier = Modifier.fillMaxSize().clip(CircleShape)
+                    modifier = Modifier.fillMaxSize().graphicsLayer {
+                        scaleX = artworkScale
+                        scaleY = artworkScale
+                    }.clip(CircleShape)
                         .pointerInput(controller, track.id) {
                             var totalX = 0f
                             var totalY = 0f
@@ -213,8 +243,22 @@ fun NowPlayingScreen(
                 shape = RoundedCornerShape(30.dp)
             ) {
                 Column(Modifier.fillMaxWidth().padding(18.dp)) {
-                Text(track.title, color = palette.onBackground, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(track.artist, color = palette.secondary, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Column(Modifier.animateContentSize(tween(260))) {
+                    AnimatedContent(
+                        targetState = track.title,
+                        transitionSpec = { fadeIn(tween(240)) + scaleIn(initialScale = .97f, animationSpec = tween(240)) togetherWith fadeOut(tween(160)) },
+                        label = "now-playing-title"
+                    ) { title ->
+                        Text(title, color = palette.onBackground, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    AnimatedContent(
+                        targetState = track.artist,
+                        transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(140)) },
+                        label = "now-playing-artist"
+                    ) { artist ->
+                        Text(artist, color = palette.secondary, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
                 Spacer(Modifier.height(12.dp))
                 PlaybackVisualizer(controller = controller, playing = playing, palette = palette)
                 Spacer(Modifier.height(12.dp))
@@ -242,8 +286,13 @@ fun NowPlayingScreen(
                 }
                 Spacer(Modifier.height(18.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    val shuffleTint by animateColorAsState(
+                        if (controller?.shuffleModeEnabled == true) palette.primary else palette.onBackground.copy(alpha = .55f),
+                        animationSpec = tween(240),
+                        label = "shuffle-state"
+                    )
                     IconButton(onClick = { controller?.shuffleModeEnabled = !(controller?.shuffleModeEnabled ?: false) }) {
-                        Icon(Icons.Default.Shuffle, contentDescription = "Toggle shuffle", tint = if (controller?.shuffleModeEnabled == true) palette.primary else palette.onBackground.copy(alpha = 0.55f))
+                        Icon(Icons.Default.Shuffle, contentDescription = "Toggle shuffle", tint = shuffleTint)
                     }
                     IconButton(onClick = onPrevious) {
                         Icon(Icons.Default.SkipPrevious, contentDescription = "Previous track", tint = palette.onBackground, modifier = Modifier.padding(4.dp))
@@ -254,7 +303,16 @@ fun NowPlayingScreen(
                             Brush.linearGradient(listOf(palette.primary, palette.secondary))
                         )
                     ) {
-                        Icon(if (playing) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = if (playing) "Pause" else "Play", tint = Color.White, modifier = Modifier.padding(9.dp))
+                        AnimatedContent(
+                            targetState = playing,
+                            transitionSpec = {
+                                (fadeIn(tween(150)) + scaleIn(initialScale = .72f, animationSpec = tween(180))) togetherWith
+                                    (fadeOut(tween(100)) + scaleOut(targetScale = .72f, animationSpec = tween(120)))
+                            },
+                            label = "main-play-pause"
+                        ) { isPlaying ->
+                            Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = if (isPlaying) "Pause" else "Play", tint = Color.White, modifier = Modifier.padding(9.dp))
+                        }
                     }
                     IconButton(onClick = onNext) {
                         Icon(Icons.Default.SkipNext, contentDescription = "Next track", tint = palette.onBackground, modifier = Modifier.padding(4.dp))
@@ -267,9 +325,22 @@ fun NowPlayingScreen(
                         }
                     }) {
                         val repeat = controller?.repeatMode ?: Player.REPEAT_MODE_OFF
-                        Icon(if (repeat == Player.REPEAT_MODE_ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
-                            contentDescription = "Repeat mode",
-                            tint = if (repeat == Player.REPEAT_MODE_OFF) palette.onBackground.copy(alpha = 0.55f) else palette.primary)
+                        val repeatTint by animateColorAsState(
+                            if (repeat == Player.REPEAT_MODE_OFF) palette.onBackground.copy(alpha = .55f) else palette.primary,
+                            animationSpec = tween(240),
+                            label = "repeat-state"
+                        )
+                        AnimatedContent(
+                            targetState = repeat,
+                            transitionSpec = { fadeIn(tween(160)) + scaleIn(initialScale = .82f, animationSpec = tween(180)) togetherWith fadeOut(tween(100)) },
+                            label = "repeat-icon"
+                        ) { mode ->
+                            Icon(
+                                if (mode == Player.REPEAT_MODE_ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
+                                contentDescription = "Repeat mode",
+                                tint = repeatTint
+                            )
+                        }
                     }
                 }
                 androidx.compose.material3.TextButton(onClick = { showQueue = true }) {
@@ -295,9 +366,14 @@ fun NowPlayingScreen(
                         itemsIndexed((0 until (controller?.mediaItemCount ?: 0)).toList()) { index, _ ->
                             val item = controller?.getMediaItemAt(index)
                             val isCurrent = index == (controller?.currentMediaItemIndex ?: -1)
+                            val queueRowColor by animateColorAsState(
+                                if (isCurrent) palette.primary.copy(alpha = .18f) else Color.Transparent,
+                                animationSpec = tween(260),
+                                label = "queue-current-track"
+                            )
                             Row(
-                                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
-                                    .background(if (isCurrent) palette.primary.copy(alpha = 0.16f) else Color.Transparent)
+                                Modifier.fillMaxWidth().animateItem().clip(RoundedCornerShape(14.dp))
+                                    .background(queueRowColor)
                                     .clickable {
                                         controller?.seekTo(index, 0L)
                                         controller?.play()
