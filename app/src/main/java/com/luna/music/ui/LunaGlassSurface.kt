@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -38,6 +39,12 @@ fun LunaGlassSurface(
     shape: Shape = RoundedCornerShape(26.dp),
     /** Turn off lens refraction for small pills where the lens depth would exceed the surface. */
     refraction: Boolean = true,
+    /**
+     * Heavier frost for big panels that can't use the lens (non-rounded-rect shapes):
+     * stronger blur, a top-lit milky fill and a coloured bloom so the panel reads as glass
+     * even over a smooth background.
+     */
+    frosted: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val hazeState = LocalLunaHazeState.current
@@ -49,20 +56,39 @@ fun LunaGlassSurface(
             shape = { shape },
             effects = {
                 vibrancy()
-                blur(2.dp.toPx())
+                blur((if (frosted) 18.dp else 2.dp).toPx())
                 if (supportsLens) lens(10.dp.toPx(), 22.dp.toPx(), depthEffect = true)
             },
             onDrawSurface = {
-                drawRect(palette.surface.copy(alpha = 0.14f))
-                drawRect(
-                    Brush.linearGradient(
-                        listOf(
-                            Color.White.copy(alpha = 0.16f),
-                            palette.glow.copy(alpha = 0.12f),
-                            Color.Transparent
+                if (frosted) {
+                    drawRect(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.22f),
+                                Color.White.copy(alpha = 0.11f),
+                                palette.surface.copy(alpha = 0.46f)
+                            )
                         )
                     )
-                )
+                    drawRect(
+                        Brush.radialGradient(
+                            colors = listOf(palette.primary.copy(alpha = 0.24f), palette.primary.copy(alpha = 0f)),
+                            center = Offset(size.width / 2f, 0f),
+                            radius = size.width * 0.75f
+                        )
+                    )
+                } else {
+                    drawRect(palette.surface.copy(alpha = 0.14f))
+                    drawRect(
+                        Brush.linearGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.16f),
+                                palette.glow.copy(alpha = 0.12f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+                }
             }
         )
     } else {

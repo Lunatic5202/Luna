@@ -61,7 +61,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Pause
@@ -274,11 +276,13 @@ fun NowPlayingScreen(
         Modifier.fillMaxSize()
             .hazeSource(state = LocalLunaHazeState.current, zIndex = -1f)
     ) {
+        // Everything the glass should see must be *inside* layerBackdrop: modifiers placed
+        // before it (like a background) are not recorded.
+        Box(Modifier.fillMaxSize().layerBackdrop(liquidBackdrop)) {
         Box(
             Modifier.fillMaxSize()
                 .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = .65f), palette.background, Color(0xFF07080D))))
-                .layerBackdrop(liquidBackdrop)
-        ) {
+        )
         AlbumArtwork(
             artworkUri = track.artworkUri?.toString(),
             modifier = Modifier.fillMaxSize().blur(42.dp).alpha(0.28f),
@@ -296,10 +300,45 @@ fun NowPlayingScreen(
                 )
             )
         )
+        // Light sources behind the dome: this colour is what the frosted glass blurs and tints.
+        Box(
+            Modifier.fillMaxSize().drawBehind {
+                val w = size.width
+                val h = size.height
+                drawRect(
+                    Brush.radialGradient(
+                        colors = listOf(palette.primary.copy(alpha = 0.42f), palette.primary.copy(alpha = 0f)),
+                        center = Offset(w * 0.5f, h * 0.80f),
+                        radius = w * 0.95f
+                    )
+                )
+                drawRect(
+                    Brush.radialGradient(
+                        colors = listOf(palette.secondary.copy(alpha = 0.26f), palette.secondary.copy(alpha = 0f)),
+                        center = Offset(w * 0.12f, h * 0.90f),
+                        radius = w * 0.75f
+                    )
+                )
+                drawRect(
+                    Brush.radialGradient(
+                        colors = listOf(palette.glow.copy(alpha = 0.42f), palette.glow.copy(alpha = 0f)),
+                        center = Offset(w * 0.92f, h * 0.72f),
+                        radius = w * 0.70f
+                    )
+                )
+            }
+        )
         }
         val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         val domeBody = DOME_HEIGHT + navBottom
         val domeTotal = domeBody + DOME_RING_INSET
+        val domeShape = remember {
+            GenericShape { size, _ ->
+                val radius = size.width * DOME_RADIUS_FRACTION
+                val cx = size.width / 2f
+                addOval(Rect(cx - radius, 0f, cx + radius, radius * 2f))
+            }
+        }
         Column(
             Modifier.fillMaxSize().statusBarsPadding()
                 .padding(start = 26.dp, end = 26.dp, top = 18.dp, bottom = domeTotal)
@@ -505,11 +544,8 @@ fun NowPlayingScreen(
             LunaGlassSurface(
                 palette = palette,
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(domeBody),
-                shape = GenericShape { size, _ ->
-                    val radius = size.width * DOME_RADIUS_FRACTION
-                    val cx = size.width / 2f
-                    addOval(Rect(cx - radius, 0f, cx + radius, radius * 2f))
-                }
+                shape = domeShape,
+                frosted = true
             ) {
                 Column(
                     Modifier.fillMaxSize().padding(start = 32.dp, end = 32.dp, top = 50.dp, bottom = navBottom + 8.dp),
