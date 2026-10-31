@@ -5,6 +5,15 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.consume
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import kotlinx.coroutines.delay
+import kotlin.math.abs
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -87,6 +96,15 @@ fun NowPlayingScreen(
     var showQueue by remember { mutableStateOf(false) }
     val queueSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val progress by animateFloatAsState(position, animationSpec = tween(250, easing = FastOutSlowInEasing), label = "track-progress")
+    var volumeVisible by remember { mutableStateOf(false) }
+    var volumePercent by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(volumeVisible) {
+        if (volumeVisible) {
+            delay(750)
+            volumeVisible = false
+        }
+    }
 
     LaunchedEffect(controller, playing, track.id, dragging) {
         while (true) {
@@ -130,18 +148,73 @@ fun NowPlayingScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = palette.onBackground)
                 }
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("NOW PLAYING", color = palette.secondary, fontSize = 10.sp, letterSpacing = 2.5.sp, fontWeight = FontWeight.Bold)
+                    Text("PLAYING", color = palette.secondary, fontSize = 10.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Medium)
                     Text(track.album.ifBlank { "YOUR LIBRARY" }, color = palette.onBackground.copy(alpha = .65f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Text("☾", color = palette.primary, fontSize = 25.sp)
             }
 
-            AlbumArtwork(
-                artworkUri = track.artworkUri?.toString(),
-                modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(CircleShape),
-                palette = palette,
-                shape = CircleShape
-            )
+            Box(
+                modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                AlbumArtwork(
+                    artworkUri = track.artworkUri?.toString(),
+                    modifier = Modifier.fillMaxSize().clip(CircleShape)
+                        .pointerInput(controller, track.id) {
+                            var totalX = 0f
+                            var totalY = 0f
+                            var axis = 0
+                            detectDragGestures(
+                                onDragStart = {
+                                    totalX = 0f
+                                    totalY = 0f
+                                    axis = 0
+                                },
+                                onDragEnd = {
+                                    if (axis == 1 && abs(totalX) > 72.dp.toPx()) {
+                                        if (totalX < 0f) onNext() else onPrevious()
+                                    }
+                                },
+                                onDragCancel = { },
+                                onDrag = { change, amount ->
+                                    change.consume()
+                                    totalX += amount.x
+                                    totalY += amount.y
+                                    if (axis == 0 && (abs(totalX) > 10.dp.toPx() || abs(totalY) > 10.dp.toPx())) {
+                                        axis = if (abs(totalX) > abs(totalY)) 1 else 2
+                                    }
+                                    if (axis == 2 && controller != null) {
+                                        val nextVolume = (controller.volume - amount.y / size.height * 1.35f).coerceIn(0f, 1f)
+                                        controller.volume = nextVolume
+                                        volumePercent = nextVolume * 100f
+                                        volumeVisible = true
+                                    }
+                                }
+                            )
+                        },
+                    palette = palette,
+                    shape = CircleShape
+                )
+                AnimatedVisibility(
+                    visible = volumeVisible,
+                    enter = fadeIn(tween(120)),
+                    exit = fadeOut(tween(220))
+                ) {
+                    Box(
+                        Modifier.clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.48f))
+                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                    ) {
+                        Text(
+                            "${volumePercent.toInt()}%",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
 
             LunaGlassSurface(
                 palette = palette,
@@ -215,7 +288,6 @@ fun NowPlayingScreen(
                 }
                 }
             }
-            Text("A LITTLE UNIVERSE, JUST FOR THIS SONG", color = palette.onBackground.copy(alpha = .35f), fontSize = 8.sp, letterSpacing = 1.8.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         }
         if (showQueue) {
             ModalBottomSheet(
