@@ -180,9 +180,15 @@ fun NowPlayingScreen(
                 modifier = Modifier.fillMaxWidth().aspectRatio(1f),
                 contentAlignment = Alignment.Center
             ) {
+                PlaybackVisualizer(
+                    controller = controller,
+                    playing = playing,
+                    palette = palette,
+                    modifier = Modifier.fillMaxSize()
+                )
                 AlbumArtwork(
                     artworkUri = track.artworkUri?.toString(),
-                    modifier = Modifier.fillMaxSize().graphicsLayer {
+                    modifier = Modifier.fillMaxSize(0.78f).graphicsLayer {
                         scaleX = artworkScale
                         scaleY = artworkScale
                     }.clip(CircleShape)
@@ -259,8 +265,6 @@ fun NowPlayingScreen(
                         Text(artist, color = palette.secondary, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
-                Spacer(Modifier.height(12.dp))
-                PlaybackVisualizer(controller = controller, playing = playing, palette = palette)
                 Spacer(Modifier.height(12.dp))
                 Slider(
                     value = if (duration > 0f) progress.coerceIn(0f, duration) else 0f,
