@@ -149,6 +149,12 @@ class MainActivity : ComponentActivity() {
             val hazeState = remember { HazeState() }
             androidx.compose.runtime.CompositionLocalProvider(LocalLunaHazeState provides hazeState) {
             LunaTheme(animatedPalette) {
+                if (!permissionGranted) {
+                    LunaPermissionIntro(
+                        palette = animatedPalette,
+                        requestPermission = { permissionLauncher.launch(permission) }
+                    )
+                } else {
                 AnimatedContent(
                     targetState = showNowPlaying && selectedTrack != null,
                     transitionSpec = {
@@ -222,6 +228,7 @@ LunaHome(
                     )
                     }
                 }
+                }
             }
             }
         }
@@ -231,6 +238,57 @@ LunaHome(
         controllerFuture?.let { MediaController.releaseFuture(it) }
         mediaController = null
         super.onDestroy()
+    }
+}
+
+@Composable
+private fun LunaPermissionIntro(
+    palette: AlbumPalette,
+    requestPermission: () -> Unit
+) {
+    Box(
+        Modifier.fillMaxSize().background(
+            Brush.verticalGradient(
+                listOf(palette.glow.copy(alpha = .55f), palette.background, Color(0xFF07080D))
+            )
+        ).statusBarsPadding().navigationBarsPadding().padding(horizontal = 28.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Text("L U N A", color = palette.onBackground, fontSize = 30.sp,
+                fontWeight = FontWeight.Bold, letterSpacing = 6.sp)
+            Spacer(Modifier.height(42.dp))
+            Text("Your music. Your space.", color = palette.onBackground,
+                fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(28.dp))
+            Text("NEEDED", color = palette.secondary, fontSize = 10.sp,
+                letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(10.dp))
+            Text("Music library", color = palette.onBackground,
+                fontSize = 17.sp, fontWeight = FontWeight.Medium)
+            Text("Find and play music stored on this device.",
+                color = palette.onBackground.copy(alpha = .58f), fontSize = 13.sp)
+            Spacer(Modifier.height(24.dp))
+            Text("OPTIONAL", color = palette.secondary, fontSize = 10.sp,
+                letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(10.dp))
+            Text("Playback visualizer", color = palette.onBackground,
+                fontSize = 17.sp, fontWeight = FontWeight.Medium)
+            Text("Android may show a microphone permission. It is used only to read this player's audio session; LUNA does not record your voice.",
+                color = palette.onBackground.copy(alpha = .58f), fontSize = 13.sp)
+            Spacer(Modifier.height(34.dp))
+            Button(
+                onClick = requestPermission,
+                modifier = Modifier.fillMaxWidth().height(54.dp),
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = palette.primary)
+            ) {
+                Text("Continue", color = Color.White, fontWeight = FontWeight.SemiBold)
+            }
+        }
     }
 }
 
@@ -257,13 +315,11 @@ private fun LunaHome(
             Row(Modifier.fillMaxWidth().padding(top = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("L U N A", color = palette.onBackground, fontSize = 26.sp, fontWeight = FontWeight.Black, letterSpacing = 5.sp)
-                    Text("MUSIC, IN ANOTHER DIMENSION", color = palette.secondary, fontSize = 9.sp, letterSpacing = 2.sp)
                 }
                 Text("☾", color = palette.primary, fontSize = 32.sp)
             }
             Spacer(Modifier.height(30.dp))
-            Text("YOUR LIBRARY", color = Muted, fontSize = 10.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
-            Text("${tracks.size} TRACKS", color = palette.onBackground, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+            Text("Library", color = palette.onBackground, fontSize = 23.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(16.dp))
 
             if (!permissionGranted) {
@@ -309,7 +365,6 @@ private fun LunaHome(
                             AlbumArtwork(track.artworkUri?.toString(), Modifier.size(48.dp), palette)
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text("NOW PLAYING", color = palette.secondary, fontSize = 9.sp, letterSpacing = 2.sp)
                                 Text(track.title, color = palette.onBackground, fontWeight = FontWeight.Bold, maxLines = 1)
                                 Text(track.artist, color = Muted, fontSize = 12.sp)
                             }
@@ -318,7 +373,6 @@ private fun LunaHome(
                                 Icon(if (playing) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = palette.onBackground)
                             }
                         }
-                        Text("TAP TO OPEN PLAYER  ↗", color = Muted, fontSize = 8.sp, letterSpacing = 1.5.sp, modifier = Modifier.padding(top = 7.dp))
                     }
                 }
             }
