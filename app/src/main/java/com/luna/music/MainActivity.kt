@@ -351,7 +351,6 @@ private fun LunaHome(
                                 Text(track.title, color = palette.onBackground, fontWeight = FontWeight.Bold, maxLines = 1)
                                 Text(track.artist, color = Muted, fontSize = 12.sp)
                             }
-                            MiniSpectrum(palette, playing)
                             IconButton(onClick = toggle) {
                                 Icon(if (playing) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = palette.onBackground)
                             }
