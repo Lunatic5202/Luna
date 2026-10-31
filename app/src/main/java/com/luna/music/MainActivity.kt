@@ -59,6 +59,12 @@ class MainActivity : ComponentActivity() {
     private var currentPalette by mutableStateOf(AlbumPalette.Fallback)
     private var paletteLoadToken = 0
 
+    private fun loadLibrary() {
+        lifecycleScope.launch {
+            tracks = repository.loadTracks()
+        }
+    }
+
     private fun updatePaletteFor(track: Track?) {
         val token = ++paletteLoadToken
         lifecycleScope.launch {
@@ -70,7 +76,7 @@ class MainActivity : ComponentActivity() {
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             permissionGranted = granted
-            if (granted) tracks = repository.loadTracks()
+            if (granted) loadLibrary()
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -82,7 +88,7 @@ class MainActivity : ComponentActivity() {
         val permission = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
                          else Manifest.permission.READ_EXTERNAL_STORAGE
         permissionGranted = ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
-        if (permissionGranted) tracks = repository.loadTracks()
+        if (permissionGranted) loadLibrary()
 
         musicPlayer.exoPlayer.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlayingNow: Boolean) {
