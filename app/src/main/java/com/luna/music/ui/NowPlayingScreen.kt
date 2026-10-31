@@ -19,7 +19,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
-import kotlinx.coroutines.delay
 import kotlin.math.abs
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,7 +37,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Pause
@@ -245,12 +246,14 @@ fun NowPlayingScreen(
                     controller = controller,
                     playing = playing,
                     palette = palette,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = 1.18f }
                 )
                 LunaGlassSurface(
                     palette = palette,
                     modifier = Modifier.fillMaxWidth().height(292.dp).graphicsLayer { scaleX = 1.18f },
-                    shape = RoundedCornerShape(percent = 50)
+                    shape = GenericShape { size, _ ->
+                        addOval(Rect(0f, 0f, size.width, size.height))
+                    }
                 ) {
                 Column(Modifier.fillMaxWidth().padding(18.dp)) {
                 Column(Modifier.animateContentSize(tween(260))) {
