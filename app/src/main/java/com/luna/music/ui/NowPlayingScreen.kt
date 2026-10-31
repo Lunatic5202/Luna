@@ -89,9 +89,9 @@ fun NowPlayingScreen(
     var dragging by remember { mutableStateOf(false) }
     var showQueue by remember { mutableStateOf(false) }
     val queueSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val progress by animateFloatAsState(position, animationSpec = tween(250, easing = FastOutSlowInEasing), label = "track-progress")
-    val volumeAlpha by animateFloatAsState(if (volumeVisible) 1f else 0f, animationSpec = tween(180), label = "volume-indicator")
     var volumeVisible by remember { mutableStateOf(false) }
+    val volumeAlpha by animateFloatAsState(if (volumeVisible) 1f else 0f, animationSpec = tween(180), label = "volume-indicator")
+    val progress by animateFloatAsState(position, animationSpec = tween(250, easing = FastOutSlowInEasing), label = "track-progress")
     var volumePercent by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(volumePercent) {
