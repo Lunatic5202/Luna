@@ -141,24 +141,11 @@ fun PlaybackVisualizer(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    "LIVE AUDIO VISUALIZER",
+                    "VISUALIZER",
                     color = palette.onBackground.copy(alpha = 0.72f),
                     fontSize = 9.sp,
                     letterSpacing = 1.5.sp
                 )
-                if (!permissionGranted && !enabled) {
-                    Text(
-                        "Uses this player's audio session, not microphone input.",
-                        color = palette.onBackground.copy(alpha = 0.45f),
-                        fontSize = 9.sp
-                    )
-                } else if (unavailable) {
-                    Text(
-                        "This device couldn't attach to the playback session.",
-                        color = palette.onBackground.copy(alpha = 0.55f),
-                        fontSize = 9.sp
-                    )
-                }
             }
             TextButton(
                 onClick = {
@@ -187,14 +174,6 @@ fun PlaybackVisualizer(
         Spacer(Modifier.height(3.dp))
         Canvas(Modifier.fillMaxWidth().height(34.dp).padding(horizontal = 2.dp)) {
             drawVisualizerBars(levels, palette.primary, palette.secondary, playing && enabled)
-        }
-        if (!permissionGranted && !enabled) {
-            Text(
-                "Android may label the required playback-capture permission as microphone access. LUNA does not record your voice or ambient sound.",
-                color = palette.onBackground.copy(alpha = 0.38f),
-                fontSize = 8.sp,
-                lineHeight = 11.sp
-            )
         }
     }
 }
