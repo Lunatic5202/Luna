@@ -14,9 +14,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -180,10 +177,8 @@ LunaHome(
                         tracks = tracks,
                         selectedTrack = selectedTrack,
                         playing = isPlaying,
-                        permissionGranted = permissionGranted,
                         palette = animatedPalette,
                         openNowPlaying = { showNowPlaying = true },
-                        requestPermission = { permissionLauncher.launch(permission) },
                         play = { track ->
                             val index = tracks.indexOf(track).coerceAtLeast(0)
                             val mediaItems = tracks.map { item ->
@@ -297,9 +292,7 @@ private fun LunaHome(
     tracks: List<Track>,
     selectedTrack: Track?,
     playing: Boolean,
-    permissionGranted: Boolean,
     palette: AlbumPalette,
-    requestPermission: () -> Unit,
     play: (Track) -> Unit,
     toggle: () -> Unit,
     next: () -> Unit,
@@ -322,17 +315,7 @@ private fun LunaHome(
             Text("Library", color = palette.onBackground, fontSize = 23.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(16.dp))
 
-            if (!permissionGranted) {
-                LunaGlassSurface(palette, Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Let LUNA find your music", color = palette.onBackground, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(8.dp))
-                        Text("Your audio stays on your device. Nothing is uploaded.", color = Muted)
-                        Spacer(Modifier.height(14.dp))
-                        Button(onClick = requestPermission) { Text("Grant music access") }
-                    }
-                }
-            } else if (tracks.isEmpty()) {
+            if (tracks.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Text("No music found. Add audio files to your device.", color = Muted)
                 }
@@ -377,26 +360,6 @@ private fun LunaHome(
                 }
             }
             Spacer(Modifier.height(12.dp))
-        }
-    }
-}
-
-@Composable
-private fun MiniSpectrum(palette: AlbumPalette, playing: Boolean) {
-    val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "spectrum")
-    Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
-        repeat(12) { index ->
-            val height by transition.animateFloat(
-                initialValue = 5f,
-                targetValue = if (playing) 10f + (index % 5) * 5f else 4f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(400 + index * 45, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "bar-$index"
-            )
-            Box(Modifier.width(3.dp).height(height.dp).clip(CircleShape)
-                .background(if (index % 3 == 0) palette.secondary else palette.primary))
         }
     }
 }
