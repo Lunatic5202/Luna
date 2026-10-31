@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.Player
+import kotlinx.coroutines.launch
 import com.luna.music.data.MusicRepository
 import com.luna.music.data.Track
 import com.luna.music.playback.MusicPlayer
