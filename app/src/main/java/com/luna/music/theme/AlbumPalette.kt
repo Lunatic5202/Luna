@@ -8,15 +8,17 @@ data class AlbumPalette(
     val primary: Color,
     val secondary: Color,
     val glow: Color,
-    val onBackground: Color = Color(0xFFF7F4FF)
+    val onBackground: Color = Color(0xFFF5F6F8)
 ) {
     companion object {
+        // Neutral while artwork is loading or unavailable; track colours replace this palette.
         val Fallback = AlbumPalette(
-            background = Color(0xFF090912),
-            surface = Color(0xFF191727),
-            primary = Color(0xFFAA83FF),
-            secondary = Color(0xFF68DCEB),
-            glow = Color(0xFF55358E)
+            background = Color(0xFF0B0D10),
+            surface = Color(0xFF171A1F),
+            primary = Color(0xFFD6D9DE),
+            secondary = Color(0xFFAEB5BF),
+            glow = Color(0xFF303640),
+            onBackground = Color(0xFFF5F6F8)
         )
     }
 }
