@@ -184,9 +184,12 @@ class MainActivity : ComponentActivity() {
                         requestPermission = { permissionLauncher.launch(permission) }
                     )
                 } else {
-                SharedTransitionLayout {
+                SharedTransitionLayout(
+                    modifier = Modifier.fillMaxSize().background(animatedPalette.background)
+                ) {
                 AnimatedContent(
                     targetState = showNowPlaying && selectedTrack != null,
+                    modifier = Modifier.fillMaxSize().background(animatedPalette.background),
                     transitionSpec = {
                         if (targetState) {
                             (fadeIn(tween(420, easing = FastOutSlowInEasing)) +
