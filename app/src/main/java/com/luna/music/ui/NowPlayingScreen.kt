@@ -820,6 +820,8 @@ fun NowPlayingScreen(
             track = track,
             palette = palette,
             durationSeconds = ((controller?.duration?.takeIf { it > 0L } ?: duration.toLong()) / 1000f),
+            controller = controller,
+            playing = playing,
             onClose = { showLyrics = false }
         )
         // Keep the dismiss gesture in a narrow top strip so it does not compete
