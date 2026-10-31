@@ -33,13 +33,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Surface
@@ -66,113 +62,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.luna.music.data.MusicCombo
 import com.luna.music.data.Track
-import com.luna.music.playback.LunaEqualizerEngine
 import com.luna.music.theme.AlbumPalette
 import com.luna.music.theme.LunaTheme
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-
-@Composable
-fun EqualizerScreen(palette: AlbumPalette, openDrawer: () -> Unit) {
-    val equalizer by LunaEqualizerEngine.state.collectAsState()
-    var presetMenuOpen by remember { mutableStateOf(false) }
-
-    LunaSettingsScaffold(palette, "Equalizer", "Shape the sound for your headphones or speakers.", openDrawer) {
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-        if (!equalizer.available) {
-            LunaGlassSurface(palette, Modifier.fillMaxWidth()) {
-                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Equalizer unavailable", color = palette.onBackground, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-                    Text(equalizer.message, color = palette.onBackground.copy(alpha = 0.78f), fontSize = 14.sp)
-                    Text("Start a track to connect LUNA to the device audio session. Support depends on the device's system audio effects.", color = palette.onBackground.copy(alpha = 0.68f), fontSize = 12.sp)
-                }
-            }
-        } else {
-            LunaGlassSurface(palette, Modifier.fillMaxWidth()) {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp)) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Equalizer", color = palette.onBackground, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                            Text("Applies to LUNA playback", color = palette.onBackground.copy(alpha = 0.72f), fontSize = 12.sp)
-                        }
-                        Switch(
-                            checked = equalizer.enabled,
-                            onCheckedChange = LunaEqualizerEngine::setEnabled,
-                            modifier = Modifier.semantics { contentDescription = "Enable equalizer" }
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-
-            LunaGlassSurface(palette, Modifier.fillMaxWidth()) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("PRESET", color = palette.onBackground.copy(alpha = 0.72f), fontSize = 11.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold)
-                    Box {
-                        TextButton(onClick = { presetMenuOpen = true }) {
-                            Text(
-                                equalizer.presets.getOrNull(equalizer.selectedPreset) ?: "Custom",
-                                color = palette.onBackground,
-                                fontSize = 16.sp
-                            )
-                        }
-                        DropdownMenu(expanded = presetMenuOpen, onDismissRequest = { presetMenuOpen = false }) {
-                            equalizer.presets.forEachIndexed { index, name ->
-                                DropdownMenuItem(
-                                    text = { Text(name, color = palette.onBackground) },
-                                    onClick = {
-                                        LunaEqualizerEngine.selectPreset(index)
-                                        presetMenuOpen = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                    Text("Presets are provided by Android and may vary by device.", color = palette.onBackground.copy(alpha = 0.68f), fontSize = 12.sp)
-                }
-            }
-
-            Spacer(Modifier.height(14.dp))
-            LunaGlassSurface(palette, Modifier.fillMaxWidth()) {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp)) {
-                    Text("BANDS", color = palette.onBackground.copy(alpha = 0.72f), fontSize = 11.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(10.dp))
-                    equalizer.bands.forEach { band ->
-                        Row(
-                            Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                formatFrequency(band.centerFrequencyHz),
-                                modifier = Modifier.width(54.dp),
-                                color = palette.onBackground,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Slider(
-                                value = band.levelMb.toFloat(),
-                                onValueChange = { LunaEqualizerEngine.setBandLevel(band.index, it.toInt()) },
-                                valueRange = equalizer.minLevelMb.toFloat()..equalizer.maxLevelMb.toFloat(),
-                                modifier = Modifier.weight(1f).semantics {
-                                    contentDescription = "${formatFrequency(band.centerFrequencyHz)} frequency band"
-                                }
-                            )
-                            Text(
-                                formatDecibels(band.levelMb),
-                                modifier = Modifier.width(48.dp),
-                                color = palette.onBackground.copy(alpha = 0.86f),
-                                fontSize = 11.sp,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.End
-                            )
-                        }
-                    }
-                    Text("Device-supported range · dB", color = palette.onBackground.copy(alpha = 0.68f), fontSize = 11.sp)
-                }
-            }
-        }
-        }
-    }
-}
 
 @Composable
 fun CombosScreen(
@@ -343,6 +236,8 @@ fun AboutScreen(palette: AlbumPalette, openDrawer: () -> Unit) {
         Spacer(Modifier.height(12.dp))
         AboutInfoCard(palette, "Audio effects", "Equalizer support and available presets depend on the Android device and its system audio effects.")
         Spacer(Modifier.height(12.dp))
+        AboutInfoCard(palette, "Glass", "Surfaces use the Backdrop library for refraction. The tilt-reactive highlight is inspired by Liquid-Glass-Android by QWEA0 (MIT licence).")
+        Spacer(Modifier.height(12.dp))
         AboutInfoCard(palette, "Made for music", "Album artwork colors shape the interface throughout the app, while playback remains local and controlled by Android's media session.")
         }
     }
@@ -359,7 +254,7 @@ private fun AboutInfoCard(palette: AlbumPalette, title: String, body: String) {
 }
 
 @Composable
-private fun LunaSettingsScaffold(
+internal fun LunaSettingsScaffold(
     palette: AlbumPalette,
     title: String,
     subtitle: String,
@@ -395,12 +290,6 @@ private fun LunaSettingsScaffold(
     }
 }
 
-private fun formatFrequency(frequencyHz: Int): String =
-    if (frequencyHz >= 1000) "${frequencyHz / 1000} kHz" else "$frequencyHz Hz"
-
-private fun formatDecibels(levelMb: Int): String =
-    "${if (levelMb > 0) "+" else ""}${"%.1f".format(levelMb / 100f)}"
-
-private fun readableContent(background: Color): Color =
+internal fun readableContent(background: Color): Color =
     if (background.luminance() > 0.48f) Color(0xFF101318) else Color.White
 

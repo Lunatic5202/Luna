@@ -85,6 +85,8 @@ import com.luna.music.playback.LunaPlaybackService
 import com.luna.music.theme.*
 import com.luna.music.ui.LunaGlassSurface
 import com.luna.music.ui.LocalLunaLiquidBackdrop
+import com.luna.music.ui.LocalLunaGlassLight
+import com.luna.music.ui.rememberLunaGlassLight
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.luna.music.ui.AlbumArtwork
@@ -189,6 +191,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val animatedPalette = rememberLunaPalette(currentPalette)
             val hazeState = remember { HazeState() }
+            val glassLight = rememberLunaGlassLight()
             LunaTheme(animatedPalette) {
             val drawerState = rememberDrawerState(DrawerValue.Closed)
             val uiScope = rememberCoroutineScope()
@@ -201,6 +204,7 @@ class MainActivity : ComponentActivity() {
                 drawerState = drawerState,
                 gesturesEnabled = permissionGranted,
                 drawerContent = {
+                    androidx.compose.runtime.CompositionLocalProvider(LocalLunaGlassLight provides glassLight) {
                     LunaNavigationDrawer(
                         palette = animatedPalette,
                         selected = currentSection,
@@ -210,9 +214,13 @@ class MainActivity : ComponentActivity() {
                             closeDrawer()
                         }
                     )
+                    }
                 }
             ) {
-            androidx.compose.runtime.CompositionLocalProvider(LocalLunaHazeState provides hazeState) {
+            androidx.compose.runtime.CompositionLocalProvider(
+                LocalLunaHazeState provides hazeState,
+                LocalLunaGlassLight provides glassLight
+            ) {
                 Crossfade(
                     targetState = permissionGranted,
                     animationSpec = tween(560),
@@ -617,19 +625,32 @@ private fun LunaDrawerItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit
 ) {
-    NavigationDrawerItem(
-        selected = selected,
-        onClick = onClick,
-        icon = { Icon(icon, contentDescription = null) },
-        label = { Text(label, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium) },
-        colors = NavigationDrawerItemDefaults.colors(
-            selectedContainerColor = palette.primary.copy(alpha = 0.22f),
-            unselectedContainerColor = Color.Transparent,
-            selectedIconColor = palette.onBackground,
-            unselectedIconColor = palette.onBackground.copy(alpha = 0.78f),
-            selectedTextColor = palette.onBackground,
-            unselectedTextColor = palette.onBackground.copy(alpha = 0.88f)
+    val item: @Composable () -> Unit = {
+        NavigationDrawerItem(
+            selected = selected,
+            onClick = onClick,
+            icon = { Icon(icon, contentDescription = null) },
+            label = { Text(label, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium) },
+            colors = NavigationDrawerItemDefaults.colors(
+                selectedContainerColor = Color.Transparent,
+                unselectedContainerColor = Color.Transparent,
+                selectedIconColor = palette.onBackground,
+                unselectedIconColor = palette.onBackground.copy(alpha = 0.78f),
+                selectedTextColor = palette.onBackground,
+                unselectedTextColor = palette.onBackground.copy(alpha = 0.88f)
+            )
         )
-    )
+    }
+    if (selected) {
+        // The active destination sits on a tinted glass pill that catches the tilt light.
+        LunaGlassSurface(
+            palette = palette,
+            modifier = Modifier.fillMaxWidth().background(palette.primary.copy(alpha = 0.14f)),
+            shape = RoundedCornerShape(28.dp),
+            refraction = false
+        ) { item() }
+    } else {
+        item()
+    }
 }
 

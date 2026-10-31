@@ -21,7 +21,10 @@ A native, offline-first Android music player built with Kotlin and Jetpack Compo
 - Animated mini spectrum placeholder
 - Session queue sheet with direct track selection
 - Shuffle and repeat-off / repeat-all / repeat-one controls
-- Device-backed equalizer with presets and per-band adjustments
+- Device-backed equalizer with vertical band sliders and a live response curve
+- Equalizer profiles: 14 built-in presets, your own saved custom profiles (save, update, rename, delete) and the device's own presets
+- Tilt-reactive glass highlight: surfaces catch a specular rim that follows the device's gravity sensor
+- Hold the fullscreen artwork to peek the previous and next tracks, slide to one and release to play it
 - Local playlist combos, a swipe-open navigation drawer, and an About page
 
 ## Build
@@ -40,7 +43,9 @@ First build requires internet for Gradle dependencies. Music playback itself is 
 - `LunaThemeEngine` extracts and caches album-art palettes. A request token prevents an older artwork decode from replacing the palette for a newer track.
 - `LunaGlassSurface` uses the Compose Backdrop liquid-glass effect over a captured screen background; custom dome geometry and older Android releases use the frosted blur fallback.
 - Combos are stored locally in app preferences and refer to MediaStore track IDs; deleting a source file can make a saved combo shorter or unplayable.
-- The equalizer attaches Android's `Equalizer` audio effect to ExoPlayer's audio session. Presets and support vary by device; LUNA does not record microphone input.
+- The equalizer attaches Android's `Equalizer` audio effect to ExoPlayer's audio session. Support and the number of bands vary by device; LUNA does not record microphone input.
+- Built-in and custom equalizer profiles are stored as (frequency, level) points and interpolated onto the device's own band centres, so a profile keeps its shape on devices with a different band count. Device presets are applied through the system effect.
+- `LunaGlassLight` registers the gravity sensor only while the activity is resumed and stays static when animations are disabled or no sensor exists. The idea comes from [QWEA0/Liquid-Glass-Android](https://github.com/QWEA0/Liquid-Glass-Android) (MIT); that library targets the View system, so only the concept is ported to Compose, on top of the existing Backdrop-based glass.
 - The mini spectrum is currently an animated playback indicator, not yet connected to actual audio frequencies.
 - MediaStore album-art URIs may be missing on some devices; LUNA falls back to a default palette.
 

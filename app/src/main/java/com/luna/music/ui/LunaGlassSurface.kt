@@ -1,7 +1,6 @@
 package com.luna.music.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,11 +36,13 @@ fun LunaGlassSurface(
     palette: AlbumPalette,
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(26.dp),
+    /** Turn off lens refraction for small pills where the lens depth would exceed the surface. */
+    refraction: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val hazeState = LocalLunaHazeState.current
     val liquidBackdrop = LocalLunaLiquidBackdrop.current
-    val supportsLens = shape is CornerBasedShape
+    val supportsLens = refraction && shape is CornerBasedShape
     val liquidSurface = if (liquidBackdrop != null) {
         Modifier.drawBackdrop(
             backdrop = liquidBackdrop,
@@ -87,17 +88,7 @@ fun LunaGlassSurface(
         modifier
             .clip(shape)
             .then(liquidSurface)
-            .border(
-                1.dp,
-                Brush.linearGradient(
-                    listOf(
-                        Color.White.copy(alpha = 0.42f),
-                        palette.secondary.copy(alpha = 0.24f),
-                        Color.White.copy(alpha = 0.09f)
-                    )
-                ),
-                shape
-            )
+            .lunaSpecularRim(shape, palette.secondary)
             .padding(1.dp)
     ) { content() }
 }
