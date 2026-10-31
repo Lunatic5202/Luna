@@ -73,7 +73,7 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
-import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Lyrics
@@ -129,11 +129,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import com.luna.music.data.Track
 import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
 import com.luna.music.theme.AlbumPalette
 import kotlinx.coroutines.delay
 
-@OptIn(ExperimentalMaterial3Api::class, UnstableApi::class, ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun NowPlayingScreen(
     track: Track,
@@ -666,7 +665,7 @@ fun NowPlayingScreen(
                         }
                     }
                     androidx.compose.material3.TextButton(onClick = { showQueue = true }) {
-                        Icon(Icons.Default.QueueMusic, contentDescription = null, tint = palette.secondary)
+                        Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, tint = palette.secondary)
                         Spacer(Modifier.width(7.dp))
                         Text("UP NEXT \u00B7 ${controller?.mediaItemCount ?: 0}", color = palette.secondary, fontSize = 10.sp, letterSpacing = 1.4.sp)
                     }

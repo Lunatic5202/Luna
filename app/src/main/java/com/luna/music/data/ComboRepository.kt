@@ -1,6 +1,7 @@
 package com.luna.music.data
 
 import android.content.Context
+import androidx.core.content.edit
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -57,7 +58,7 @@ class ComboRepository(context: Context) {
                     .put("tracks", trackIds)
             )
         }
-        preferences.edit().putString(KEY_COMBOS, array.toString()).apply()
+        preferences.edit { putString(KEY_COMBOS, array.toString()) }
     }
 
     private companion object {

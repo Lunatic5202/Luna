@@ -25,13 +25,11 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.13'
 
       - name: Assemble debug APK
         run: |
           set +e
-          gradle :app:assembleDebug --console=plain > build.log 2>&1
+          ./gradlew :app:assembleDebug --console=plain > build.log 2>&1
           status=$?
           msg=$(grep -E '^e: ' build.log | head -45 | sed 's/^e: file:\/\/\/home\/runner\/work\/[^/]*\/[^/]*\///' | sed 's/$/%0A/' | tr -d '\n')
           echo "::error title=Kotlin errors::${msg}"

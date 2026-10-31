@@ -1,0 +1,20 @@
+# Gradle and Kotlin build state
+.gradle/
+.kotlin/
+**/build/
+
+# Android Studio and local SDK configuration
+.idea/
+local.properties
+*.iml
+
+# Native build and generated Android artifacts
+.externalNativeBuild/
+.cxx/
+captures/
+*.apk
+*.aab
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -18,6 +18,7 @@ A native, offline-first Android music player built with Kotlin and Jetpack Compo
 - Blurred album-art ambience behind the Now Playing screen
 - Animated library/player screen transitions
 - Full-screen Now Playing UI with seek progress, duration, and playback controls
+- Full-screen lyrics view with artist metadata, synced-lyrics support, and a blurred animated artwork backdrop
 - Animated mini spectrum placeholder
 - Session queue sheet with direct track selection
 - Shuffle and repeat-off / repeat-all / repeat-one controls
@@ -30,11 +31,11 @@ A native, offline-first Android music player built with Kotlin and Jetpack Compo
 ## Build
 - Android Studio with Android SDK 36
 - JDK 17
-- Gradle 8.13 or compatible
+- Run `./gradlew :app:assembleDebug` (Windows: `gradlew.bat :app:assembleDebug`). The checked-in Gradle wrapper pins Gradle 8.13 and verifies its SHA-256 checksum.
 - Open the repository as a Gradle project, sync dependencies, then run the `app` configuration on a device or emulator.
-- A GitHub Actions workflow runs `gradle :app:assembleDebug` on pushes and pull requests to `main`.
+- GitHub Actions uses the same wrapper command on pushes and pull requests to `main`.
 
-First build requires internet for Gradle dependencies. Music playback itself is local.
+First build requires internet for Gradle dependencies. Lyrics are looked up on demand through LRCLIB using the track title, artist, album, and duration; music playback and library scanning stay on device.
 
 ## Architecture notes
 - `MainActivity` owns UI state and connects to `LunaPlaybackService` through a Media3 `MediaController`. It does not own or release the player.

@@ -4,6 +4,7 @@ import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
+import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -66,7 +67,7 @@ class MusicRepository(private val context: Context) {
 
                     val albumId = cursor.getLong(albumIdCol)
                     val artwork = ContentUris.withAppendedId(
-                        Uri.parse("content://media/external/audio/albumart"), albumId
+                        "content://media/external/audio/albumart".toUri(), albumId
                     )
                     result += Track(
                         id = id,
@@ -78,10 +79,12 @@ class MusicRepository(private val context: Context) {
                     )
                 }
             }
-        } catch (_: SecurityException) {
-            // Permission may be revoked while the library is being scanned.
-        } catch (_: IllegalArgumentException) {
-            // Some OEM MediaStore providers expose incomplete audio columns.
+        } catch (error: SecurityException) {
+            // Let the Activity distinguish revoked permission from an empty library.
+            throw error
+        } catch (error: IllegalArgumentException) {
+            // Let the Activity show a retry state for incomplete OEM MediaStore providers.
+            throw error
         }
         result
     }

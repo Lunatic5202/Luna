@@ -2,6 +2,7 @@ package com.luna.music.playback
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import android.media.audiofx.Equalizer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -144,7 +145,7 @@ object LunaEqualizerEngine {
     fun setEnabled(enabled: Boolean) {
         val effect = equalizer ?: return
         runCatching { effect.enabled = enabled }.onSuccess {
-            preferences?.edit()?.putBoolean(KEY_ENABLED, enabled)?.apply()
+            preferences?.edit { putBoolean(KEY_ENABLED, enabled) }
             publish(effect)
         }
     }
@@ -293,13 +294,13 @@ object LunaEqualizerEngine {
 
     private fun persistLevels(effect: Equalizer) {
         runCatching {
-            preferences?.edit()
-                ?.putString(KEY_LEVELS, (0 until effect.numberOfBands.toInt())
+            preferences?.edit {
+                putString(KEY_LEVELS, (0 until effect.numberOfBands.toInt())
                     .joinToString(",") { effect.getBandLevel(it.toShort()).toString() })
-                ?.putString(KEY_ACTIVE, activeProfileId)
-                ?.putBoolean(KEY_MODIFIED, modified)
-                ?.remove(KEY_PRESET)
-                ?.apply()
+                putString(KEY_ACTIVE, activeProfileId)
+                putBoolean(KEY_MODIFIED, modified)
+                remove(KEY_PRESET)
+            }
         }
     }
 
@@ -326,7 +327,7 @@ object LunaEqualizerEngine {
                     .put("points", JSONArray(profile.points.map { JSONArray(listOf(it.first, it.second)) }))
             )
         }
-        preferences?.edit()?.putString(KEY_CUSTOM, array.toString())?.apply()
+        preferences?.edit { putString(KEY_CUSTOM, array.toString()) }
     }
 
     @Synchronized

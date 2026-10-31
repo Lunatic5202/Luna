@@ -3,9 +3,14 @@
 package com.luna.music
 
 import android.Manifest
+import android.database.ContentObserver
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.provider.MediaStore
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -54,7 +59,7 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -76,6 +81,8 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import com.luna.music.data.MusicRepository
 import com.luna.music.data.ComboRepository
@@ -117,18 +124,87 @@ class MainActivity : ComponentActivity() {
     private var showNowPlaying by mutableStateOf(false)
     private var currentSection by mutableStateOf(LunaSection.Library)
     private var combos by mutableStateOf<List<MusicCombo>>(emptyList())
+    private var libraryLoading by mutableStateOf(false)
+    private var libraryLoadFailed by mutableStateOf(false)
+    private var libraryLoadJob: Job? = null
+    private var libraryLoadGeneration = 0
+    private var audioObserver: ContentObserver? = null
+    private val libraryRefreshHandler = Handler(Looper.getMainLooper())
+    private val libraryRefreshRunnable = Runnable { if (permissionGranted) loadLibrary() }
 
     private fun loadLibrary() {
-        lifecycleScope.launch {
-            tracks = repository.loadTracks()
-            // The session may reconnect before the local library scan finishes.
-            mediaController?.currentMediaItem?.let { item ->
-                tracks.firstOrNull { it.id.toString() == item.mediaId }?.let { track ->
-                    selectedTrack = track
-                    updatePaletteFor(track)
+        if (!permissionGranted) return
+        val generation = ++libraryLoadGeneration
+        libraryLoadJob?.cancel()
+        libraryLoading = true
+        libraryLoadFailed = false
+        libraryLoadJob = lifecycleScope.launch {
+            try {
+                val loadedTracks = repository.loadTracks()
+                if (generation != libraryLoadGeneration) return@launch
+                tracks = loadedTracks
+                // The session may reconnect before the local library scan finishes.
+                mediaController?.currentMediaItem?.let { item ->
+                    tracks.firstOrNull { it.id.toString() == item.mediaId }?.let { track ->
+                        selectedTrack = track
+                        updatePaletteFor(track)
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                if (generation == libraryLoadGeneration) {
+                    libraryLoadFailed = true
+                    Log.e("Luna", "Unable to load the music library", error)
+                }
+            } finally {
+                if (generation == libraryLoadGeneration) {
+                    libraryLoading = false
+                    libraryLoadJob = null
                 }
             }
         }
+    }
+
+    private fun syncLibraryPermission() {
+        val permission = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
+                         else Manifest.permission.READ_EXTERNAL_STORAGE
+        val granted = ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+        if (granted == permissionGranted) return
+        permissionGranted = granted
+        if (granted) {
+            loadLibrary()
+        } else {
+            libraryLoadGeneration++
+            libraryLoadJob?.cancel()
+            libraryLoadJob = null
+            libraryLoading = false
+            libraryLoadFailed = false
+            tracks = emptyList()
+        }
+    }
+
+    private fun registerAudioObserver() {
+        if (!permissionGranted || audioObserver != null) return
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean, uri: android.net.Uri?) {
+                libraryRefreshHandler.removeCallbacks(libraryRefreshRunnable)
+                libraryRefreshHandler.postDelayed(libraryRefreshRunnable, 450L)
+            }
+        }
+        try {
+            contentResolver.registerContentObserver(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, true, observer)
+            audioObserver = observer
+        } catch (error: SecurityException) {
+            Log.w("Luna", "Music library permission changed while registering updates", error)
+            syncLibraryPermission()
+        }
+    }
+
+    private fun unregisterAudioObserver() {
+        audioObserver?.let(contentResolver::unregisterContentObserver)
+        audioObserver = null
+        libraryRefreshHandler.removeCallbacks(libraryRefreshRunnable)
     }
 
     private fun updatePaletteFor(track: Track?) {
@@ -164,26 +240,31 @@ class MainActivity : ComponentActivity() {
         controllerFuture = MediaController.Builder(this, sessionToken).buildAsync().also { future ->
             future.addListener({
                 if (isFinishing || isDestroyed) return@addListener
-                mediaController = future.get()
-                mediaController?.addListener(object : Player.Listener {
-                    override fun onIsPlayingChanged(isPlayingNow: Boolean) {
-                        isPlaying = isPlayingNow
-                    }
+                try {
+                    val controller = future.get()
+                    mediaController = controller
+                    controller.addListener(object : Player.Listener {
+                        override fun onIsPlayingChanged(isPlayingNow: Boolean) {
+                            isPlaying = isPlayingNow
+                        }
 
-                    override fun onMediaItemTransition(
-                        mediaItem: MediaItem?,
-                        reason: Int
-                    ) {
-                        val track = tracks.firstOrNull { it.id.toString() == mediaItem?.mediaId } ?: return
-                        selectedTrack = track
-                        updatePaletteFor(track)
+                        override fun onMediaItemTransition(
+                            mediaItem: MediaItem?,
+                            reason: Int
+                        ) {
+                            val track = tracks.firstOrNull { it.id.toString() == mediaItem?.mediaId } ?: return
+                            selectedTrack = track
+                            updatePaletteFor(track)
+                        }
+                    })
+                    controller.currentMediaItem?.let { item ->
+                        tracks.firstOrNull { it.id.toString() == item.mediaId }?.let { track ->
+                            selectedTrack = track
+                            updatePaletteFor(track)
+                        }
                     }
-                })
-                mediaController?.currentMediaItem?.let { item ->
-                    tracks.firstOrNull { it.id.toString() == item.mediaId }?.let { track ->
-                        selectedTrack = track
-                        updatePaletteFor(track)
-                    }
+                } catch (error: Exception) {
+                    Log.e("Luna", "Unable to connect to the playback service", error)
                 }
             }, ContextCompat.getMainExecutor(this))
         }
@@ -254,9 +335,10 @@ class MainActivity : ComponentActivity() {
                     label = "screen-transition"
                 ) { showPlayer ->
                     val screenVisibilityScope = this@AnimatedContent
-                    if (showPlayer && selectedTrack != null) {
+                    val nowPlayingTrack = selectedTrack
+                    if (showPlayer && nowPlayingTrack != null) {
                     NowPlayingScreen(
-                        track = selectedTrack!!,
+                        track = nowPlayingTrack,
                         palette = animatedPalette,
                         playing = isPlaying,
                         controller = mediaController,
@@ -276,6 +358,9 @@ class MainActivity : ComponentActivity() {
                     ) { section -> when (section) {
                     LunaSection.Library -> LunaHome(
                         tracks = tracks,
+                        libraryLoading = libraryLoading,
+                        libraryLoadFailed = libraryLoadFailed,
+                        reloadLibrary = ::loadLibrary,
                         selectedTrack = selectedTrack,
                         playing = isPlaying,
                         palette = animatedPalette,
@@ -375,7 +460,21 @@ class MainActivity : ComponentActivity() {
     }
     }
 
+    override fun onResume() {
+        super.onResume()
+        syncLibraryPermission()
+        registerAudioObserver()
+    }
+
+    override fun onPause() {
+        unregisterAudioObserver()
+        super.onPause()
+    }
+
     override fun onDestroy() {
+        unregisterAudioObserver()
+        libraryLoadGeneration++
+        libraryLoadJob?.cancel()
         controllerFuture?.let { MediaController.releaseFuture(it) }
         mediaController = null
         super.onDestroy()
@@ -442,6 +541,9 @@ private fun LunaPermissionIntro(
 @Composable
 private fun LunaHome(
     tracks: List<Track>,
+    libraryLoading: Boolean,
+    libraryLoadFailed: Boolean,
+    reloadLibrary: () -> Unit,
     selectedTrack: Track?,
     playing: Boolean,
     palette: AlbumPalette,
@@ -480,7 +582,19 @@ private fun LunaHome(
 
             if (tracks.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text("No music found. Add audio files to your device.", color = Muted)
+                    when {
+                        libraryLoading -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(color = palette.secondary)
+                            Spacer(Modifier.height(14.dp))
+                            Text("Scanning your music library…", color = Muted)
+                        }
+                        libraryLoadFailed -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Couldn’t load your music library.", color = Muted)
+                            Spacer(Modifier.height(10.dp))
+                            Button(onClick = reloadLibrary) { Text("Try again") }
+                        }
+                        else -> Text("No music found. Add audio files to your device.", color = Muted)
+                    }
                 }
             } else {
                 val libraryListState = rememberLazyListState()
@@ -608,7 +722,7 @@ private fun LunaNavigationDrawer(
             Text("YOUR SPACE", color = palette.onBackground.copy(alpha = 0.68f), fontSize = 10.sp, letterSpacing = 1.7.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 14.dp, bottom = 8.dp))
             LunaDrawerItem(palette, selected == LunaSection.Library, "Library", Icons.Default.LibraryMusic) { onSelect(LunaSection.Library) }
             LunaDrawerItem(palette, selected == LunaSection.Equalizer, "Equalizer", Icons.Default.GraphicEq) { onSelect(LunaSection.Equalizer) }
-            LunaDrawerItem(palette, selected == LunaSection.Combos, "Combos", Icons.Default.QueueMusic) { onSelect(LunaSection.Combos) }
+            LunaDrawerItem(palette, selected == LunaSection.Combos, "Combos", Icons.AutoMirrored.Filled.QueueMusic) { onSelect(LunaSection.Combos) }
             Spacer(Modifier.height(14.dp))
             LunaDrawerItem(palette, selected == LunaSection.About, "About", Icons.Default.Info) { onSelect(LunaSection.About) }
             Spacer(Modifier.weight(1f))

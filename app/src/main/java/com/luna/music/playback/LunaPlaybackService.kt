@@ -1,6 +1,7 @@
 package com.luna.music.playback
 
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.AudioAttributes
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.session.MediaSession
@@ -21,7 +22,10 @@ class LunaPlaybackService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        val player = ExoPlayer.Builder(this).build()
+        val player = ExoPlayer.Builder(this)
+            .setHandleAudioBecomingNoisy(true)
+            .build()
+            .apply { setAudioAttributes(AudioAttributes.DEFAULT, true) }
         // Service and UI share a process, so publish the audio session id directly.
         // (A MediaController cannot read it across the session boundary.)
         _audioSessionId.value = player.audioSessionId

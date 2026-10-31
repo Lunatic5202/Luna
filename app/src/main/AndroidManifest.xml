@@ -9,6 +9,8 @@
     <application
         android:allowBackup="true"
         android:label="LUNA"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:supportsRtl="true">
         <activity
@@ -19,6 +21,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Exported so System UI, Android Auto, and other media controllers can find the session. Media3 gives untrusted controllers read-only access. -->
         <service
             android:name=".playback.LunaPlaybackService"
             android:exported="true"
