@@ -268,7 +268,7 @@ internal fun LunaSettingsScaffold(
         Box(Modifier.fillMaxSize().background(palette.background)) {
             Box(
                 Modifier.fillMaxSize()
-                    .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = 0.55f), palette.background, Color(0xFF07080D))))
+                    .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = 0.55f), palette.background, palette.backgroundBottom)))
                     .layerBackdrop(liquidBackdrop)
             )
             Column(
@@ -291,5 +291,15 @@ internal fun LunaSettingsScaffold(
 }
 
 internal fun readableContent(background: Color): Color =
-    if (background.luminance() > 0.48f) Color(0xFF101318) else Color.White
+    if (contrastRatio(Color.White, background) >= contrastRatio(Color(0xFF101318), background)) {
+        Color.White
+    } else {
+        Color(0xFF101318)
+    }
+
+private fun contrastRatio(foreground: Color, background: Color): Float {
+    val lighter = maxOf(foreground.luminance(), background.luminance())
+    val darker = minOf(foreground.luminance(), background.luminance())
+    return (lighter + 0.05f) / (darker + 0.05f)
+}
 

@@ -1,5 +1,6 @@
 package com.luna.music.ui
 
+import android.content.Context
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -13,6 +14,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.activity.compose.BackHandler
+import androidx.core.content.edit
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
@@ -50,6 +52,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -65,6 +68,7 @@ import java.io.BufferedReader
 import java.net.HttpURLConnection
 import java.io.InputStreamReader
 import java.net.URL
+import java.security.MessageDigest
 
 private sealed interface LyricsState {
     data object Loading : LyricsState
@@ -81,10 +85,11 @@ fun LyricsOverlay(
     durationSeconds: Float,
     onClose: () -> Unit
 ) {
+    val context = LocalContext.current.applicationContext
     var state by remember(track.id) { mutableStateOf<LyricsState>(LyricsState.Loading) }
     LaunchedEffect(visible, track.id, durationSeconds, state) {
         if (visible && state is LyricsState.Loading) {
-            state = fetchLyrics(track, durationSeconds)
+            state = fetchLyrics(context, track, durationSeconds)
         }
     }
     BackHandler(enabled = visible, onBack = onClose)
@@ -191,7 +196,46 @@ private fun EmptyLyrics(palette: AlbumPalette, message: String) {
     }
 }
 
-private suspend fun fetchLyrics(track: Track, durationSeconds: Float): LyricsState = withContext(Dispatchers.IO) {
+private suspend fun fetchLyrics(context: Context, track: Track, durationSeconds: Float): LyricsState = withContext(Dispatchers.IO) {
+    val cache = context.getSharedPreferences("lyrics_cache", Context.MODE_PRIVATE)
+    val cacheKey = lyricsCacheKey(track)
+    val cachedAt = cache.getLong("${cacheKey}_saved", 0L)
+    val cachedText = cache.getString("${cacheKey}_text", null)
+    val cachedNotFound = cache.getBoolean("${cacheKey}_not_found", false)
+    val cacheTtl = if (cachedNotFound) NEGATIVE_CACHE_TTL_MS else LYRICS_CACHE_TTL_MS
+    if (System.currentTimeMillis() - cachedAt in 0L..cacheTtl) {
+        if (cachedText != null) return@withContext LyricsState.Available(cachedText)
+        if (cachedNotFound) return@withContext LyricsState.NotFound
+    }
+
+    val result = fetchLyricsFromNetwork(track, durationSeconds)
+    when (result) {
+        is LyricsState.Available -> cache.edit {
+            putString("${cacheKey}_text", result.text)
+            putBoolean("${cacheKey}_not_found", false)
+            putLong("${cacheKey}_saved", System.currentTimeMillis())
+        }
+        LyricsState.NotFound -> cache.edit {
+            remove("${cacheKey}_text")
+            putBoolean("${cacheKey}_not_found", true)
+            putLong("${cacheKey}_saved", System.currentTimeMillis())
+        }
+        else -> Unit // Transient failures should be retried on the next attempt.
+    }
+    result
+}
+
+private fun lyricsCacheKey(track: Track): String {
+    val identity = listOf(
+        normalizeMetadata(track.title),
+        normalizeMetadata(track.artist),
+        normalizeMetadata(track.album)
+    ).joinToString("\u0000")
+    return MessageDigest.getInstance("SHA-256").digest(identity.toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it) }
+}
+
+private suspend fun fetchLyricsFromNetwork(track: Track, durationSeconds: Float): LyricsState = withContext(Dispatchers.IO) {
     var connection: HttpURLConnection? = null
     try {
         if (durationSeconds > 0f) {
@@ -289,3 +333,5 @@ private fun readLimitedResponse(reader: BufferedReader): String {
 }
 
 private const val MAX_RESPONSE_CHARS = 1_000_000
+private const val LYRICS_CACHE_TTL_MS = 30L * 24 * 60 * 60 * 1000
+private const val NEGATIVE_CACHE_TTL_MS = 12L * 60 * 60 * 1000

@@ -58,6 +58,8 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -282,7 +284,7 @@ fun NowPlayingScreen(
         Box(Modifier.fillMaxSize().layerBackdrop(liquidBackdrop)) {
         Box(
             Modifier.fillMaxSize()
-                .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = .65f), palette.background, Color(0xFF07080D))))
+                .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = .65f), palette.background, palette.backgroundBottom)))
         )
         AlbumArtwork(
             artworkUri = track.artworkUri?.toString(),
@@ -296,7 +298,7 @@ fun NowPlayingScreen(
                     listOf(
                         palette.glow.copy(alpha = 0.68f),
                         palette.background.copy(alpha = 0.88f),
-                        Color(0xFF07080D).copy(alpha = 0.96f)
+                        palette.backgroundBottom.copy(alpha = 0.96f)
                     )
                 )
             )
@@ -583,6 +585,9 @@ fun NowPlayingScreen(
                     }
                     Column(Modifier.fillMaxWidth()) {
                         Slider(
+                            modifier = Modifier.semantics {
+                                contentDescription = "Playback position"
+                            },
                             value = if (duration > 0f) progress.coerceIn(0f, duration) else 0f,
                             onValueChange = {
                                 dragging = true

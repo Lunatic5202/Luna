@@ -19,6 +19,8 @@ A native, offline-first Android music player built with Kotlin and Jetpack Compo
 - Animated library/player screen transitions
 - Full-screen Now Playing UI with seek progress, duration, and playback controls
 - Full-screen lyrics view with artist metadata, synced-lyrics support, and a blurred animated artwork backdrop
+- Lyrics results cached on-device with expiry, while temporary lookup failures remain retryable
+- Library search across track, artist, and album metadata; Tracks, Artists, and Albums views with title, artist, and album sorting
 - Animated mini spectrum placeholder
 - Session queue sheet with direct track selection
 - Shuffle and repeat-off / repeat-all / repeat-one controls
@@ -27,6 +29,8 @@ A native, offline-first Android music player built with Kotlin and Jetpack Compo
 - Tilt-reactive glass highlight: surfaces catch a specular rim that follows the device's gravity sensor
 - Hold the fullscreen artwork to peek the previous and next tracks, slide to one and release to play it
 - Local playlist combos, a swipe-open navigation drawer, and an About page
+
+See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the device and release review steps.
 
 ## Build
 - Android Studio with Android SDK 36

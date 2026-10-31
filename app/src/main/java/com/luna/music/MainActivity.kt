@@ -22,7 +22,6 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.ui.unit.IntOffset
 import com.luna.music.ui.EqualizerBars
 import com.luna.music.ui.bouncyClickable
@@ -61,8 +60,12 @@ import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,6 +73,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -101,13 +108,14 @@ import com.luna.music.ui.NowPlayingScreen
 import com.luna.music.ui.EqualizerScreen
 import com.luna.music.ui.CombosScreen
 import com.luna.music.ui.AboutScreen
+import com.luna.music.ui.readableContent
 import com.luna.music.ui.LocalLunaHazeState
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 
-private val Muted = Color(0xFFAAA7BA)
-
 private enum class LunaSection { Library, Equalizer, Combos, About }
+private enum class LibraryView { Tracks, Artists, Albums }
+private enum class LibrarySort { Title, Artist, Album }
 
 class MainActivity : ComponentActivity() {
     private var mediaController: MediaController? = null
@@ -489,7 +497,7 @@ private fun LunaPermissionIntro(
     Box(
         Modifier.fillMaxSize().background(
             Brush.verticalGradient(
-                listOf(palette.glow.copy(alpha = .55f), palette.background, Color(0xFF07080D))
+                listOf(palette.glow.copy(alpha = .55f), palette.background, palette.backgroundBottom)
             )
         ).statusBarsPadding().navigationBarsPadding().padding(horizontal = 28.dp),
         contentAlignment = Alignment.Center
@@ -532,7 +540,7 @@ private fun LunaPermissionIntro(
                 shape = RoundedCornerShape(18.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = palette.primary)
             ) {
-                Text("Continue", color = Color.White, fontWeight = FontWeight.SemiBold)
+                Text("Continue", color = readableContent(palette.primary), fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -556,6 +564,23 @@ private fun LunaHome(
     openNowPlaying: () -> Unit,
     openDrawer: () -> Unit
 ) {
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var selectedViewName by rememberSaveable { mutableStateOf(LibraryView.Tracks.name) }
+    var selectedSortName by rememberSaveable { mutableStateOf(LibrarySort.Title.name) }
+    var showSortMenu by remember { mutableStateOf(false) }
+    val libraryView = LibraryView.entries.firstOrNull { it.name == selectedViewName } ?: LibraryView.Tracks
+    val librarySort = LibrarySort.entries.firstOrNull { it.name == selectedSortName } ?: LibrarySort.Title
+    val visibleTracks = remember(tracks, searchQuery, librarySort) {
+        val query = searchQuery.trim()
+        tracks.asSequence()
+            .filter { query.isEmpty() || listOf(it.title, it.artist, it.album).any { value -> value.contains(query, ignoreCase = true) } }
+            .sortedWith(when (librarySort) {
+                LibrarySort.Title -> compareBy<Track, String>(String.CASE_INSENSITIVE_ORDER) { it.title }
+                LibrarySort.Artist -> compareBy<Track, String>(String.CASE_INSENSITIVE_ORDER) { it.artist }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.title }
+                LibrarySort.Album -> compareBy<Track, String>(String.CASE_INSENSITIVE_ORDER) { it.album }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.title }
+            })
+            .toList()
+    }
     val liquidBackdrop = rememberLayerBackdrop()
     CompositionLocalProvider(LocalLunaLiquidBackdrop provides liquidBackdrop) {
     Box(
@@ -564,7 +589,7 @@ private fun LunaHome(
     ) {
         Box(
             Modifier.fillMaxSize()
-                .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = .42f), palette.background, Color(0xFF07080D))))
+                .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = .42f), palette.background, palette.backgroundBottom)))
                 .layerBackdrop(liquidBackdrop)
         )
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 22.dp)) {
@@ -578,7 +603,7 @@ private fun LunaHome(
             }
             Spacer(Modifier.height(30.dp))
             Text("Library", color = palette.onBackground, fontSize = 23.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
             if (tracks.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -586,61 +611,98 @@ private fun LunaHome(
                         libraryLoading -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator(color = palette.secondary)
                             Spacer(Modifier.height(14.dp))
-                            Text("Scanning your music library…", color = Muted)
+                            Text("Scanning your music library…", color = palette.muted)
                         }
                         libraryLoadFailed -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Couldn’t load your music library.", color = Muted)
+                            Text("Couldn’t load your music library.", color = palette.muted)
                             Spacer(Modifier.height(10.dp))
                             Button(onClick = reloadLibrary) { Text("Try again") }
                         }
-                        else -> Text("No music found. Add audio files to your device.", color = Muted)
+                        else -> Text("No music found. Add audio files to your device.", color = palette.muted)
                     }
                 }
             } else {
-                val libraryListState = rememberLazyListState()
-                val animatedTrackIds = remember { mutableSetOf<Long>() }
-                var hasUserScrolled by remember { mutableStateOf(false) }
-                LaunchedEffect(libraryListState) {
-                    snapshotFlow {
-                        libraryListState.firstVisibleItemIndex > 0 ||
-                            libraryListState.firstVisibleItemScrollOffset > 0
-                    }.first { it }
-                    hasUserScrolled = true
-                }
-                LazyColumn(Modifier.weight(1f), state = libraryListState, verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    itemsIndexed(tracks, key = { _, item -> item.id }) { index, track ->
-                        // Lazy items leave composition while scrolling. Only animate
-                        // their first appearance before the user starts scrolling.
-                        val animateEntrance = remember(track.id) {
-                            !hasUserScrolled && animatedTrackIds.add(track.id)
-                        }
-                        val isSelected = selectedTrack?.id == track.id
-                        val rowColor by animateColorAsState(
-                            targetValue = if (isSelected) palette.primary.copy(alpha = .19f) else Color.White.copy(alpha = .045f),
-                            animationSpec = tween(320),
-                            label = "library-row-selection"
-                        )
-                        Row(
-                            Modifier.fillMaxWidth()
-                                // Keep the welcome motion restrained: layers on every row
-                                // remain in the scrolling path even after their entrance ends.
-                                .then(if (animateEntrance && index < 5) Modifier.staggeredEntrance(index, 55L) else Modifier)
-                                .bouncyClickable(RoundedCornerShape(17.dp), rowColor) { play(track) }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            AlbumArtwork(track.artworkUri?.toString(), Modifier.size(46.dp), palette)
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(track.title, color = palette.onBackground, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold)
-                                Text(track.artist, color = Muted, fontSize = 12.sp, maxLines = 1)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        placeholder = { Text("Search songs, artists, albums") },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Clear search")
                             }
-                            AnimatedVisibility(
-                                visible = isSelected,
-                                enter = fadeIn(tween(180)) + scaleIn(initialScale = .88f, animationSpec = tween(180)),
-                                exit = fadeOut(tween(140)) + scaleOut(targetScale = .88f, animationSpec = tween(140))
-                            ) {
-                                EqualizerBars(palette.secondary, playing)
+                        },
+                        shape = RoundedCornerShape(18.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = palette.secondary,
+                            unfocusedBorderColor = palette.onBackground.copy(alpha = .28f),
+                            cursorColor = palette.secondary
+                        )
+                    )
+                    Box {
+                        IconButton(onClick = { showSortMenu = true }) {
+                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort by ${librarySort.name.lowercase()}", tint = palette.onBackground)
+                        }
+                        DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
+                            LibrarySort.entries.forEach { sort ->
+                                DropdownMenuItem(
+                                    text = { Text("Sort by ${sort.name.lowercase()}") },
+                                    onClick = { selectedSortName = sort.name; showSortMenu = false },
+                                    leadingIcon = { if (sort == librarySort) Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) }
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LibraryView.entries.forEach { view ->
+                        FilterChip(
+                            selected = libraryView == view,
+                            onClick = { selectedViewName = view.name },
+                            label = { Text(view.name) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = palette.primary.copy(alpha = .22f),
+                                selectedLabelColor = palette.onBackground,
+                                labelColor = palette.onBackground.copy(alpha = .78f)
+                            )
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                val libraryListState = rememberLazyListState()
+                if (visibleTracks.isEmpty()) {
+                    Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Text("No matches. Try a different search.", color = palette.muted)
+                    }
+                } else {
+                    LazyColumn(Modifier.weight(1f), state = libraryListState, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        when (libraryView) {
+                            LibraryView.Tracks -> items(visibleTracks, key = { "track:${it.id}" }) { track ->
+                                LibraryTrackRow(track, palette, selectedTrack?.id == track.id, playing) { play(it) }
+                            }
+                            LibraryView.Artists -> visibleTracks.groupBy { it.artist.ifBlank { "Unknown artist" } }
+                                .entries.sortedBy { it.key.lowercase() }.forEach { (artist, artistTracks) ->
+                                    item(key = "artist:$artist") {
+                                        LibraryGroupHeading("$artist · ${artistTracks.size}", palette)
+                                    }
+                                    items(artistTracks, key = { "artist:${artist}:${it.id}" }) { track ->
+                                        LibraryTrackRow(track, palette, selectedTrack?.id == track.id, playing) { play(it) }
+                                    }
+                                }
+                            LibraryView.Albums -> visibleTracks.groupBy {
+                                "${it.album.ifBlank { "Unknown album" }}\u0000${it.artist.ifBlank { "Unknown artist" }}"
+                            }.entries.sortedBy { it.key.lowercase() }.forEach { (key, albumTracks) ->
+                                val (album, artist) = key.split("\u0000", limit = 2)
+                                item(key = "album:$key") {
+                                    LibraryGroupHeading("$album · $artist · ${albumTracks.size}", palette)
+                                }
+                                items(albumTracks, key = { "album:${key}:${it.id}" }) { track ->
+                                    LibraryTrackRow(track, palette, selectedTrack?.id == track.id, playing) { play(it) }
+                                }
                             }
                         }
                     }
@@ -657,7 +719,14 @@ private fun LunaHome(
                 selectedTrack?.let { track ->
                     Spacer(Modifier.height(12.dp))
                     LunaGlassSurface(palette, Modifier.fillMaxWidth()) {
-                        Column(Modifier.clickable(onClick = openNowPlaying).animateContentSize(tween(240)).padding(14.dp)) {
+                        Column(
+                            Modifier.clickable(onClick = openNowPlaying)
+                                .semantics {
+                                    contentDescription = "Now playing ${track.title} by ${track.artist}"
+                                    role = Role.Button
+                                }
+                                .animateContentSize(tween(240)).padding(14.dp)
+                        ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 AlbumArtwork(track.artworkUri?.toString(), Modifier.lunaSharedArtwork(sharedScope, visibilityScope).size(48.dp), palette, CircleShape)
                                 Spacer(Modifier.width(12.dp))
@@ -677,7 +746,7 @@ private fun LunaHome(
                                         transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(140)) },
                                         label = "mini-player-artist"
                                     ) { artist ->
-                                        Text(artist, color = Muted, fontSize = 12.sp, maxLines = 1)
+                                        Text(artist, color = palette.muted, fontSize = 12.sp, maxLines = 1)
                                     }
                                 }
                                 IconButton(onClick = toggle) {
@@ -689,7 +758,7 @@ private fun LunaHome(
                                         },
                                         label = "mini-player-play-pause"
                                     ) { isPlaying ->
-                                        Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = palette.onBackground)
+                                        Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, if (isPlaying) "Pause" else "Play", tint = palette.onBackground)
                                     }
                                 }
                             }
@@ -704,6 +773,58 @@ private fun LunaHome(
 }
 
 @Composable
+private fun LibraryGroupHeading(title: String, palette: AlbumPalette) {
+    Text(
+        title,
+        modifier = Modifier.fillMaxWidth().padding(start = 6.dp, top = 12.dp, bottom = 2.dp),
+        color = palette.secondary,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis
+    )
+}
+
+@Composable
+private fun LibraryTrackRow(
+    track: Track,
+    palette: AlbumPalette,
+    selected: Boolean,
+    playing: Boolean,
+    play: (Track) -> Unit
+) {
+    val rowColor by animateColorAsState(
+        targetValue = if (selected) palette.primary.copy(alpha = .19f) else Color.White.copy(alpha = .045f),
+        animationSpec = tween(320),
+        label = "library-row-selection"
+    )
+    Row(
+        Modifier.fillMaxWidth()
+            .bouncyClickable(RoundedCornerShape(17.dp), rowColor) { play(track) }
+            .semantics(mergeDescendants = true) {
+                contentDescription = "${track.title} by ${track.artist}"
+                role = Role.Button
+            }
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AlbumArtwork(track.artworkUri?.toString(), Modifier.size(46.dp), palette)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(track.title, color = palette.onBackground, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold)
+            Text(track.artist, color = palette.muted, fontSize = 12.sp, maxLines = 1)
+        }
+        AnimatedVisibility(
+            visible = selected,
+            enter = fadeIn(tween(180)) + scaleIn(initialScale = .88f, animationSpec = tween(180)),
+            exit = fadeOut(tween(140)) + scaleOut(targetScale = .88f, animationSpec = tween(140))
+        ) {
+            EqualizerBars(palette.secondary, playing)
+        }
+    }
+}
+
+@Composable
 private fun LunaNavigationDrawer(
     palette: AlbumPalette,
     selected: LunaSection,
@@ -712,7 +833,7 @@ private fun LunaNavigationDrawer(
     ModalDrawerSheet(modifier = Modifier.width(304.dp)) {
         Column(
             Modifier.fillMaxSize()
-                .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = 0.55f), palette.background, Color(0xFF07080D))))
+                .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = 0.55f), palette.background, palette.backgroundBottom)))
                 .padding(horizontal = 18.dp, vertical = 26.dp)
         ) {
             Text("L U N A", color = palette.onBackground, fontSize = 24.sp, fontWeight = FontWeight.Black, letterSpacing = 4.sp)

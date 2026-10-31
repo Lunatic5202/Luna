@@ -10,6 +10,17 @@ data class AlbumPalette(
     val glow: Color,
     val onBackground: Color = Color(0xFFF5F6F8)
 ) {
+    /** Shared secondary text color for use across every screen. */
+    val muted: Color get() = onBackground.copy(alpha = 0.72f)
+
+    /** A palette-derived gradient endpoint that keeps the app's backgrounds in the same family. */
+    val backgroundBottom: Color get() = Color(
+        red = background.red * 0.76f,
+        green = background.green * 0.76f,
+        blue = background.blue * 0.76f,
+        alpha = background.alpha
+    )
+
     companion object {
         // Neutral while artwork is loading or unavailable; track colours replace this palette.
         val Fallback = AlbumPalette(
