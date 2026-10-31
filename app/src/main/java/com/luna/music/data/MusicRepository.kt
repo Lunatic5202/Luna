@@ -58,7 +58,7 @@ class MusicRepository(private val context: Context) {
                     val duration = cursor.getLong(durationCol)
 
                     if (size <= 8192L || duration < 15_000L) continue
-                    if (mime !in acceptedMimeTypes) continue
+                    if (mime == null || mime !in acceptedMimeTypes) continue
                     if (title.isBlank() || isGenericAudioLabel(title) || isGenericAudioLabel(displayName)) continue
 
                     val uri = ContentUris.withAppendedId(collection, id)
