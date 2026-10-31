@@ -3,6 +3,7 @@ package com.luna.music.theme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.Typography
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -35,9 +36,23 @@ fun LunaTheme(palette: AlbumPalette, content: @Composable () -> Unit) {
         onBackground = palette.onBackground,
         onSurface = palette.onBackground
     )
-    MaterialTheme(
-        colorScheme = scheme,
-        typography = Typography(defaultFontFamily = LunaFontFamily),
-        content = content
+    val baseTypography = Typography()
+    val lunaTypography = Typography(
+        displayLarge = baseTypography.displayLarge.copy(fontFamily = LunaFontFamily),
+        displayMedium = baseTypography.displayMedium.copy(fontFamily = LunaFontFamily),
+        displaySmall = baseTypography.displaySmall.copy(fontFamily = LunaFontFamily),
+        headlineLarge = baseTypography.headlineLarge.copy(fontFamily = LunaFontFamily),
+        headlineMedium = baseTypography.headlineMedium.copy(fontFamily = LunaFontFamily),
+        headlineSmall = baseTypography.headlineSmall.copy(fontFamily = LunaFontFamily),
+        titleLarge = baseTypography.titleLarge.copy(fontFamily = LunaFontFamily),
+        titleMedium = baseTypography.titleMedium.copy(fontFamily = LunaFontFamily),
+        titleSmall = baseTypography.titleSmall.copy(fontFamily = LunaFontFamily),
+        bodyLarge = baseTypography.bodyLarge.copy(fontFamily = LunaFontFamily),
+        bodyMedium = baseTypography.bodyMedium.copy(fontFamily = LunaFontFamily),
+        bodySmall = baseTypography.bodySmall.copy(fontFamily = LunaFontFamily),
+        labelLarge = baseTypography.labelLarge.copy(fontFamily = LunaFontFamily),
+        labelMedium = baseTypography.labelMedium.copy(fontFamily = LunaFontFamily),
+        labelSmall = baseTypography.labelSmall.copy(fontFamily = LunaFontFamily)
     )
+    MaterialTheme(colorScheme = scheme, typography = lunaTypography, content = content)
 }
