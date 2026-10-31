@@ -96,7 +96,7 @@ class MainActivity : ComponentActivity() {
     private fun updatePaletteFor(track: Track?) {
         val token = ++paletteLoadToken
         lifecycleScope.launch {
-            val palette = themeEngine.paletteFor(track?.artworkUri)
+            val palette = themeEngine.paletteFor(track?.artworkUri, track?.uri)
             if (token == paletteLoadToken) currentPalette = palette
         }
     }
