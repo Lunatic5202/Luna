@@ -76,6 +76,7 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -151,6 +152,7 @@ fun NowPlayingScreen(
     var duration by remember(track.id) { mutableFloatStateOf(0f) }
     var dragging by remember { mutableStateOf(false) }
     var showQueue by remember { mutableStateOf(false) }
+    var showLyrics by remember { mutableStateOf(false) }
     var queueItems by remember(controller) { mutableStateOf(readQueueItems(controller)) }
     val queueListState = rememberLazyListState()
     var draggedQueueKey by remember { mutableStateOf<String?>(null) }
@@ -361,6 +363,9 @@ fun NowPlayingScreen(
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("PLAYING", color = palette.secondary, fontSize = 10.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Medium)
                     Text(track.album.ifBlank { "YOUR LIBRARY" }, color = palette.onBackground.copy(alpha = .65f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                IconButton(onClick = { showLyrics = true }) {
+                    Icon(Icons.Default.Lyrics, contentDescription = "Show lyrics", tint = palette.onBackground)
                 }
                 IconButton(onClick = openDrawer) {
                     Icon(Icons.Default.Menu, contentDescription = "Open navigation", tint = palette.onBackground)
@@ -784,6 +789,13 @@ fun NowPlayingScreen(
                 }
             }
         }
+        LyricsOverlay(
+            visible = showLyrics,
+            track = track,
+            palette = palette,
+            durationSeconds = ((controller?.duration?.takeIf { it > 0L } ?: duration.toLong()) / 1000f),
+            onClose = { showLyrics = false }
+        )
         // Keep the dismiss gesture in a narrow top strip so it does not compete
         // with artwork swipes, the seek bar, or the player controls.
         Box(
