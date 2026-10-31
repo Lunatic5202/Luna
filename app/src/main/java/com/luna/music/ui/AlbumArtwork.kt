@@ -3,6 +3,12 @@ package com.luna.music.ui
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -49,16 +55,26 @@ fun AlbumArtwork(
             .background(Brush.linearGradient(listOf(palette.primary, palette.secondary))),
         contentAlignment = Alignment.Center
     ) {
-        val image = bitmap.value
-        if (image != null) {
-            Image(
-                image.asImageBitmap(),
-                contentDescription = "Album artwork",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            Text("♫", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Light)
+        AnimatedContent(
+            targetState = bitmap.value,
+            transitionSpec = {
+                (fadeIn(tween(340)) + scaleIn(initialScale = .975f, animationSpec = tween(340))) togetherWith
+                    fadeOut(tween(180))
+            },
+            label = "album-artwork-crossfade"
+        ) { image ->
+            if (image != null) {
+                Image(
+                    image.asImageBitmap(),
+                    contentDescription = "Album artwork",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("♫", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Light)
+                }
+            }
         }
     }
 }
