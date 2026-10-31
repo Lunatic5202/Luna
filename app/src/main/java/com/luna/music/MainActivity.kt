@@ -13,13 +13,13 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -320,10 +320,11 @@ private fun LunaHome(
                     Text("No music found. Add audio files to your device.", color = Muted)
                 }
             } else {
-                LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                val libraryListState = rememberLazyListState()
+                LazyColumn(Modifier.weight(1f), state = libraryListState, verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     items(tracks, key = { it.id }) { track ->
                         Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp))
+                            Modifier.fillMaxWidth().animateItem().clip(RoundedCornerShape(17.dp))
                                 .background(if (selectedTrack?.id == track.id) palette.primary.copy(alpha = .17f) else Color.White.copy(alpha = .045f))
                                 .clickable { play(track) }.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
