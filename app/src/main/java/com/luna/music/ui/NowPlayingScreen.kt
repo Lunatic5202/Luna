@@ -181,6 +181,30 @@ fun NowPlayingScreen(
                 modifier = Modifier.fillMaxWidth().aspectRatio(1f),
                 contentAlignment = Alignment.Center
             ) {
+                val glowAlpha by animateFloatAsState(
+                    targetValue = if (playing) 0.34f else 0.12f,
+                    animationSpec = tween(700, easing = FastOutSlowInEasing),
+                    label = "artwork-ambient-glow"
+                )
+                Box(
+                    Modifier.fillMaxSize(0.9f)
+                        .graphicsLayer {
+                            scaleX = artworkPulse
+                            scaleY = artworkPulse
+                            alpha = glowAlpha
+                        }
+                        .blur(34.dp)
+                        .background(
+                            Brush.radialGradient(
+                                listOf(
+                                    palette.primary.copy(alpha = 0.62f),
+                                    palette.secondary.copy(alpha = 0.24f),
+                                    Color.Transparent
+                                )
+                            ),
+                            CircleShape
+                        )
+                )
                 AlbumArtwork(
                     artworkUri = track.artworkUri?.toString(),
                     modifier = Modifier.fillMaxSize(0.78f).graphicsLayer {
