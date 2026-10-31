@@ -13,7 +13,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalDensity
 import com.luna.music.theme.AlbumPalette
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
@@ -34,8 +33,6 @@ fun LunaGlassSurface(
     content: @Composable () -> Unit
 ) {
     val hazeState = LocalLunaHazeState.current
-    val blurRadius = with(LocalDensity.current) { 24.dp.toPx() }
-
     Box(
         modifier
             .clip(shape)
@@ -44,7 +41,7 @@ fun LunaGlassSurface(
                 style = HazeStyle(
                     backgroundColor = palette.background,
                     tint = HazeTint(Color.White.copy(alpha = 0.10f)),
-                    blurRadius = blurRadius,
+                    blurRadius = 24.dp,
                     noiseFactor = 0.12f
                 )
             )
