@@ -44,6 +44,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -72,6 +74,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -510,7 +513,7 @@ private fun LunaPermissionIntro(
         contentAlignment = Alignment.Center
     ) {
         Column(
-            Modifier.fillMaxWidth(),
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.Start
         ) {
             LunaBrandLogo(
@@ -520,7 +523,8 @@ private fun LunaPermissionIntro(
             Spacer(Modifier.height(28.dp))
             Text("Your music. Your space.", color = palette.onBackground,
                 fontSize = 28.sp, fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.staggeredEntrance(1, 110))
+                modifier = Modifier.fillMaxWidth().staggeredEntrance(1, 110),
+                textAlign = TextAlign.Center)
             Spacer(Modifier.height(28.dp))
             Column(Modifier.staggeredEntrance(2, 110)) {
                 Text("NEEDED", color = palette.secondary, fontSize = 10.sp,
@@ -869,7 +873,13 @@ private fun LunaNavigationDrawer(
                 contentDescription = "Luna music player"
             )
             Spacer(Modifier.height(6.dp))
-            Text("Your music, your space.", color = palette.onBackground.copy(alpha = 0.78f), fontSize = 13.sp)
+            Text(
+                "Your music, your space.",
+                modifier = Modifier.fillMaxWidth(),
+                color = palette.onBackground.copy(alpha = 0.78f),
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center
+            )
             Spacer(Modifier.height(28.dp))
             Text("YOUR SPACE", color = palette.onBackground.copy(alpha = 0.68f), fontSize = 10.sp, letterSpacing = 1.7.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 14.dp, bottom = 8.dp))
             LunaDrawerItem(palette, selected == LunaSection.Library, "Library", Icons.Default.LibraryMusic) { onSelect(LunaSection.Library) }

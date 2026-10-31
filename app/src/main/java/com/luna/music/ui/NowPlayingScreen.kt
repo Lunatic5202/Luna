@@ -114,6 +114,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalConfiguration
 import com.luna.music.ui.LocalLunaHazeState
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -340,7 +341,9 @@ fun NowPlayingScreen(
         )
         }
         val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        val domeBody = DOME_HEIGHT + navBottom
+        val compactDomeHeight = (LocalConfiguration.current.screenHeightDp * 0.46f).dp
+            .coerceIn(310.dp, DOME_HEIGHT)
+        val domeBody = compactDomeHeight + navBottom
         val domeTotal = domeBody + DOME_RING_INSET
         val domeShape = remember {
             GenericShape { size, _ ->

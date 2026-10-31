@@ -49,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -159,9 +160,11 @@ private fun CreateComboDialog(
 ) {
     var name by remember { mutableStateOf("") }
     val selectedIds = remember { mutableStateListOf<Long>() }
+    val dialogMaxHeight = (LocalConfiguration.current.screenHeightDp.dp - 48.dp)
+        .coerceIn(320.dp, 680.dp)
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(
-            modifier = Modifier.fillMaxWidth(0.92f).heightIn(max = 680.dp),
+            modifier = Modifier.fillMaxWidth(0.92f).heightIn(max = dialogMaxHeight),
             shape = RoundedCornerShape(28.dp),
             color = palette.surface,
             contentColor = palette.onBackground,
@@ -225,14 +228,18 @@ fun AboutScreen(palette: AlbumPalette, openDrawer: () -> Unit) {
     LunaSettingsScaffold(palette, "About", "A quiet home for the music on your device.", openDrawer) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
         LunaGlassSurface(palette, Modifier.fillMaxWidth()) {
-            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                Modifier.fillMaxWidth().padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 LunaBrandLogo(
                     modifier = Modifier.size(148.dp).align(Alignment.CenterHorizontally),
                     contentDescription = "Luna music player"
                 )
-                Text("Built by Lunatic", color = palette.onBackground, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                Text("Version 0.1.0", color = palette.onBackground.copy(alpha = 0.78f), fontSize = 13.sp)
-                Text("An offline-first music player for songs stored on your Android device.", color = palette.onBackground.copy(alpha = 0.88f), fontSize = 14.sp)
+                Text("Built by Lunatic", color = palette.onBackground, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                Text("Version 0.1.0", color = palette.onBackground.copy(alpha = 0.78f), fontSize = 13.sp, textAlign = TextAlign.Center)
+                Text("An offline-first music player for songs stored on your Android device.", color = palette.onBackground.copy(alpha = 0.88f), fontSize = 14.sp, textAlign = TextAlign.Center)
             }
         }
         Spacer(Modifier.height(14.dp))
