@@ -192,7 +192,6 @@ private fun EmptyLyrics(palette: AlbumPalette, message: String) {
 }
 
 private suspend fun fetchLyrics(track: Track, durationSeconds: Float): LyricsState = withContext(Dispatchers.IO) {
-    var exactMiss = false
     var connection: HttpURLConnection? = null
     try {
         if (durationSeconds > 0f) {
@@ -205,20 +204,18 @@ private suspend fun fetchLyrics(track: Track, durationSeconds: Float): LyricsSta
             val request = openLyricsRequest("https://lrclib.net/api/get?$query")
             connection = request
             when (request.responseCode) {
-                HttpURLConnection.HTTP_NOT_FOUND -> exactMiss = true
+                HttpURLConnection.HTTP_NOT_FOUND -> Unit
                 in 200..299 -> {
                     val json = JSONObject(BufferedReader(InputStreamReader(request.inputStream, Charsets.UTF_8)).use(::readLimitedResponse))
                     lyricsFrom(json)?.let { return@withContext LyricsState.Available(it) }
-                    exactMiss = true
+                    Unit
                 }
                 else -> return@withContext LyricsState.Failed
             }
             request.disconnect()
             connection = null
-        } else {
-            exactMiss = true
         }
-        if (exactMiss) searchLyrics(track)
+        searchLyrics(track)
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (_: Exception) {
