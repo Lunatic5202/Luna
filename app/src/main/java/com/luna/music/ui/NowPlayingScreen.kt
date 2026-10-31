@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Pause
@@ -86,6 +87,23 @@ fun NowPlayingScreen(
             .hazeSource(state = LocalLunaHazeState.current, zIndex = -1f)
             .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = .65f), palette.background, Color(0xFF07080D))))
     ) {
+        AlbumArtwork(
+            artworkUri = track.artworkUri?.toString(),
+            modifier = Modifier.fillMaxSize().blur(42.dp).alpha(0.28f),
+            palette = palette,
+            shape = RectangleShape
+        )
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.verticalGradient(
+                    listOf(
+                        palette.glow.copy(alpha = 0.68f),
+                        palette.background.copy(alpha = 0.88f),
+                        Color(0xFF07080D).copy(alpha = 0.96f)
+                    )
+                )
+            )
+        )
         Column(
             Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 26.dp, vertical = 18.dp),
             verticalArrangement = Arrangement.SpaceBetween
@@ -108,7 +126,12 @@ fun NowPlayingScreen(
                 shape = CircleShape
             )
 
-            Column(Modifier.fillMaxWidth()) {
+            LunaGlassSurface(
+                palette = palette,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(30.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(18.dp)) {
                 Text(track.title, color = palette.onBackground, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(track.artist, color = palette.secondary, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(22.dp))
@@ -150,6 +173,7 @@ fun NowPlayingScreen(
                     IconButton(onClick = onNext) {
                         Icon(Icons.Default.SkipNext, contentDescription = "Next track", tint = palette.onBackground, modifier = Modifier.padding(4.dp))
                     }
+                }
                 }
             }
             Text("A LITTLE UNIVERSE, JUST FOR THIS SONG", color = palette.onBackground.copy(alpha = .35f), fontSize = 8.sp, letterSpacing = 1.8.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
