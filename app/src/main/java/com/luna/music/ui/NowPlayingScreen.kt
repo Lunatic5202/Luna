@@ -334,32 +334,20 @@ fun NowPlayingScreen(
                         palette = palette,
                         shape = CircleShape
                     )
-                    AnimatedVisibility(
-                        visible = showArtworkPeek && previousArtwork != null,
+                    ArtworkPeekOverlay(
+                        visible = showArtworkPeek,
+                        item = previousArtwork,
+                        palette = palette,
                         modifier = Modifier.align(Alignment.CenterStart).offset(x = (-2).dp),
-                        enter = fadeIn(tween(150)) +
-                            scaleIn(spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)) +
-                            slideInHorizontally(tween(260, easing = FastOutSlowInEasing)) { -it / 2 },
-                        exit = fadeOut(tween(120)) + scaleOut(animationSpec = tween(180)) +
-                            slideOutHorizontally(tween(180)) { -it / 3 }
-                    ) {
-                        previousArtwork?.let { item ->
-                            ArtworkPeekBubble(item, palette, Alignment.Start)
-                        }
-                    }
-                    AnimatedVisibility(
-                        visible = showArtworkPeek && nextArtwork != null,
+                        fromLeft = true
+                    )
+                    ArtworkPeekOverlay(
+                        visible = showArtworkPeek,
+                        item = nextArtwork,
+                        palette = palette,
                         modifier = Modifier.align(Alignment.CenterEnd).offset(x = 2.dp),
-                        enter = fadeIn(tween(150)) +
-                            scaleIn(spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)) +
-                            slideInHorizontally(tween(260, easing = FastOutSlowInEasing)) { it / 2 },
-                        exit = fadeOut(tween(120)) + scaleOut(animationSpec = tween(180)) +
-                            slideOutHorizontally(tween(180)) { it / 3 }
-                    ) {
-                        nextArtwork?.let { item ->
-                            ArtworkPeekBubble(item, palette, Alignment.End)
-                        }
-                    }
+                        fromLeft = false
+                    )
                     if (volumeAlpha > 0.01f) {
                         Box(
                             Modifier.alpha(volumeAlpha).clip(CircleShape)
@@ -600,6 +588,35 @@ private data class ArtworkPeekItem(
     val artworkUri: String?,
     val title: String
 )
+
+@Composable
+private fun ArtworkPeekOverlay(
+    visible: Boolean,
+    item: ArtworkPeekItem?,
+    palette: AlbumPalette,
+    modifier: Modifier,
+    fromLeft: Boolean
+) {
+    AnimatedVisibility(
+        visible = visible && item != null,
+        modifier = modifier,
+        enter = fadeIn(tween(150)) +
+            scaleIn(spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)) +
+            slideInHorizontally(tween(260, easing = FastOutSlowInEasing)) {
+                if (fromLeft) -it / 2 else it / 2
+            },
+        exit = fadeOut(tween(120)) + scaleOut(animationSpec = tween(180)) +
+            slideOutHorizontally(tween(180)) { if (fromLeft) -it / 3 else it / 3 }
+    ) {
+        item?.let {
+            ArtworkPeekBubble(
+                item = it,
+                palette = palette,
+                horizontalAlignment = if (fromLeft) Alignment.Start else Alignment.End
+            )
+        }
+    }
+}
 
 @Composable
 private fun ArtworkPeekBubble(
