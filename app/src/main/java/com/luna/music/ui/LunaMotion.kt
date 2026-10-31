@@ -41,7 +41,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.lerp
 import kotlinx.coroutines.delay
 
 /** Marks the album artwork as the element that flies between the mini player and Now Playing. */
@@ -122,6 +121,23 @@ fun Modifier.staggeredEntrance(index: Int, stepMillis: Long = 45L): Modifier {
 /** Three little bars that bounce while music plays and settle when paused. */
 @Composable
 fun EqualizerBars(color: Color, playing: Boolean, modifier: Modifier = Modifier) {
+    if (playing) {
+        PlayingEqualizerBars(color, modifier)
+    } else {
+        Row(
+            modifier.height(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.5.dp),
+            verticalAlignment = Alignment.Bottom
+        ) {
+            EqualizerBar(0.25f, color)
+            EqualizerBar(0.3f, color)
+            EqualizerBar(0.2f, color)
+        }
+    }
+}
+
+@Composable
+private fun PlayingEqualizerBars(color: Color, modifier: Modifier) {
     val transition = rememberInfiniteTransition(label = "equalizer")
     val a by transition.animateFloat(
         0.25f, 1f,
@@ -138,19 +154,23 @@ fun EqualizerBars(color: Color, playing: Boolean, modifier: Modifier = Modifier)
         infiniteRepeatable(tween(460, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "eq-c"
     )
-    val mix by animateFloatAsState(if (playing) 1f else 0f, tween(320), label = "eq-mix")
     Row(
         modifier.height(16.dp),
         horizontalArrangement = Arrangement.spacedBy(2.5.dp),
         verticalAlignment = Alignment.Bottom
     ) {
-        listOf(a, b, c).forEach { level ->
-            Box(
-                Modifier.width(3.dp)
-                    .fillMaxHeight(lerp(0.22f, level, mix))
-                    .clip(RoundedCornerShape(50))
-                    .background(color)
-            )
-        }
+        EqualizerBar(a, color)
+        EqualizerBar(b, color)
+        EqualizerBar(c, color)
     }
+}
+
+@Composable
+private fun EqualizerBar(level: Float, color: Color) {
+    Box(
+        Modifier.width(3.dp)
+            .fillMaxHeight(level)
+            .clip(RoundedCornerShape(50))
+            .background(color)
+    )
 }

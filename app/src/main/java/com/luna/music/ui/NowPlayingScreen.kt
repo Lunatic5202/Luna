@@ -172,15 +172,20 @@ fun NowPlayingScreen(
     var volumePercent by remember { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
     val dragX = remember { Animatable(0f) }
-    val artworkPulse by rememberInfiniteTransition(label = "artwork-pulse").animateFloat(
-        initialValue = 1f,
-        targetValue = 1.018f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1900, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "artwork-pulse-scale"
-    )
+    val artworkPulse = if (playing) {
+        val pulse by rememberInfiniteTransition(label = "artwork-pulse").animateFloat(
+            initialValue = 1f,
+            targetValue = 1.018f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1900, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "artwork-pulse-scale"
+        )
+        pulse
+    } else {
+        1f
+    }
     val artworkScale by animateFloatAsState(
         targetValue = if (playing) artworkPulse else 0.93f,
         animationSpec = spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessLow),
@@ -200,12 +205,13 @@ fun NowPlayingScreen(
     }
 
     LaunchedEffect(controller, playing, track.id, dragging) {
+        val player = controller ?: return@LaunchedEffect
+        if (dragging) return@LaunchedEffect
         while (true) {
-            if (!dragging && controller != null) {
-                val total = controller.duration.coerceAtLeast(0L)
-                duration = total.toFloat()
-                position = controller.currentPosition.coerceAtLeast(0L).toFloat().coerceAtMost(duration)
-            }
+            val total = player.duration.coerceAtLeast(0L)
+            duration = total.toFloat()
+            position = player.currentPosition.coerceAtLeast(0L).toFloat().coerceAtMost(duration)
+            if (!playing) break
             delay(400)
         }
     }
@@ -289,7 +295,7 @@ fun NowPlayingScreen(
         )
         AlbumArtwork(
             artworkUri = track.artworkUri?.toString(),
-            modifier = Modifier.fillMaxSize().blur(42.dp).alpha(0.28f),
+            modifier = Modifier.fillMaxSize().blur(24.dp).alpha(0.22f),
             palette = palette,
             shape = RectangleShape
         )
@@ -391,7 +397,6 @@ fun NowPlayingScreen(
                                 scaleY = artworkPulse
                                 alpha = glowAlpha
                             }
-                            .blur(34.dp)
                             .background(
                                 Brush.radialGradient(
                                     listOf(
