@@ -180,12 +180,6 @@ fun NowPlayingScreen(
                 modifier = Modifier.fillMaxWidth().aspectRatio(1f),
                 contentAlignment = Alignment.Center
             ) {
-                PlaybackVisualizer(
-                    controller = controller,
-                    playing = playing,
-                    palette = palette,
-                    modifier = Modifier.fillMaxSize()
-                )
                 AlbumArtwork(
                     artworkUri = track.artworkUri?.toString(),
                     modifier = Modifier.fillMaxSize(0.78f).graphicsLayer {
@@ -243,11 +237,21 @@ fun NowPlayingScreen(
                 }
             }
 
-            LunaGlassSurface(
-                palette = palette,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(30.dp)
+            Box(
+                modifier = Modifier.fillMaxWidth().height(306.dp),
+                contentAlignment = Alignment.Center
             ) {
+                PlaybackVisualizer(
+                    controller = controller,
+                    playing = playing,
+                    palette = palette,
+                    modifier = Modifier.fillMaxSize()
+                )
+                LunaGlassSurface(
+                    palette = palette,
+                    modifier = Modifier.fillMaxWidth(1.18f).height(292.dp),
+                    shape = RoundedCornerShape(percent = 50)
+                ) {
                 Column(Modifier.fillMaxWidth().padding(18.dp)) {
                 Column(Modifier.animateContentSize(tween(260))) {
                     AnimatedContent(
@@ -351,6 +355,7 @@ fun NowPlayingScreen(
                     Icon(Icons.Default.QueueMusic, contentDescription = null, tint = palette.secondary)
                     androidx.compose.foundation.layout.Spacer(Modifier.width(7.dp))
                     Text("UP NEXT · ${controller?.mediaItemCount ?: 0}", color = palette.secondary, fontSize = 10.sp, letterSpacing = 1.4.sp)
+                }
                 }
                 }
             }
