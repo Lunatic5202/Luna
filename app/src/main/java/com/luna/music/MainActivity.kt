@@ -77,6 +77,9 @@ import com.luna.music.data.Track
 import com.luna.music.playback.LunaPlaybackService
 import com.luna.music.theme.*
 import com.luna.music.ui.LunaGlassSurface
+import com.luna.music.ui.LocalLunaLiquidBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.luna.music.ui.AlbumArtwork
 import com.luna.music.ui.NowPlayingScreen
 import com.luna.music.ui.LocalLunaHazeState
@@ -357,11 +360,17 @@ private fun LunaHome(
     visibilityScope: AnimatedVisibilityScope,
     openNowPlaying: () -> Unit
 ) {
+    val liquidBackdrop = rememberLayerBackdrop()
+    CompositionLocalProvider(LocalLunaLiquidBackdrop provides liquidBackdrop) {
     Box(
         Modifier.fillMaxSize()
             .hazeSource(state = LocalLunaHazeState.current, zIndex = -1f)
-            .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = .42f), palette.background, Color(0xFF07080D))))
     ) {
+        Box(
+            Modifier.fillMaxSize()
+                .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = .42f), palette.background, Color(0xFF07080D))))
+                .layerBackdrop(liquidBackdrop)
+        )
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 22.dp)) {
             Row(Modifier.fillMaxWidth().padding(top = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -480,6 +489,7 @@ private fun LunaHome(
             }
             Spacer(Modifier.height(12.dp))
         }
+    }
     }
 }
 
