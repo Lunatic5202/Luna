@@ -127,7 +127,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-            }
     }
 
     private fun updatePaletteFor(track: Track?) {

@@ -64,7 +64,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.luna.music.BuildConfig
 import com.luna.music.data.MusicCombo
 import com.luna.music.data.Track
 import com.luna.music.playback.LunaEqualizerEngine
@@ -333,7 +332,7 @@ fun AboutScreen(palette: AlbumPalette, openDrawer: () -> Unit) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("L U N A", color = palette.onBackground, fontSize = 25.sp, fontWeight = FontWeight.Black, letterSpacing = 4.sp)
                 Text("Built by Lunatic", color = palette.onBackground, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                Text("Version ${BuildConfig.VERSION_NAME}", color = palette.onBackground.copy(alpha = 0.78f), fontSize = 13.sp)
+                Text("Version 0.1.0", color = palette.onBackground.copy(alpha = 0.78f), fontSize = 13.sp)
                 Text("An offline-first music player for songs stored on your Android device.", color = palette.onBackground.copy(alpha = 0.88f), fontSize = 14.sp)
             }
         }
