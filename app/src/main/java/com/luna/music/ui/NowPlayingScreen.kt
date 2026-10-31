@@ -75,6 +75,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -99,6 +100,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalDensity
 import com.luna.music.ui.LocalLunaHazeState
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import dev.chrisbanes.haze.hazeSource
 import androidx.media3.session.MediaController
 import androidx.media3.common.MediaItem
@@ -244,11 +247,17 @@ fun NowPlayingScreen(
             }
     }
 
+    val liquidBackdrop = rememberLayerBackdrop()
+    CompositionLocalProvider(LocalLunaLiquidBackdrop provides liquidBackdrop) {
     Box(
         Modifier.fillMaxSize()
             .hazeSource(state = LocalLunaHazeState.current, zIndex = -1f)
-            .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = .65f), palette.background, Color(0xFF07080D))))
     ) {
+        Box(
+            Modifier.fillMaxSize()
+                .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = .65f), palette.background, Color(0xFF07080D))))
+                .layerBackdrop(liquidBackdrop)
+        ) {
         AlbumArtwork(
             artworkUri = track.artworkUri?.toString(),
             modifier = Modifier.fillMaxSize().blur(42.dp).alpha(0.28f),
@@ -266,6 +275,7 @@ fun NowPlayingScreen(
                 )
             )
         )
+        }
         val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         val domeBody = DOME_HEIGHT + navBottom
         val domeTotal = domeBody + DOME_RING_INSET
@@ -706,6 +716,7 @@ fun NowPlayingScreen(
                     )
                 }
         )
+    }
     }
 }
 
