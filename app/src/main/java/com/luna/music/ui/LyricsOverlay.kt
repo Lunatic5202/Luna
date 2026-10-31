@@ -335,6 +335,9 @@ private fun lyricsCacheKey(track: Track): String {
 }
 
 private suspend fun fetchLyricsFromNetwork(track: Track, durationSeconds: Float): LyricsState = withContext(Dispatchers.IO) {
+    if (track.title.isBlank() || track.artist.isBlank() || track.artist.equals("Unknown artist", ignoreCase = true)) {
+        return@withContext LyricsState.NotFound
+    }
     if (durationSeconds > 0f) {
         var connection: HttpURLConnection? = null
         try {
@@ -412,8 +415,8 @@ private suspend fun fetchLyricsFromLyricsOvh(track: Track): LyricsState {
 
 private fun openLyricsRequest(url: String): HttpURLConnection =
     (URL(url).openConnection() as HttpURLConnection).apply {
-        connectTimeout = 7_000
-        readTimeout = 7_000
+        connectTimeout = LYRICS_CONNECT_TIMEOUT_MS
+        readTimeout = LYRICS_READ_TIMEOUT_MS
         requestMethod = "GET"
         setRequestProperty("Accept", "application/json")
         setRequestProperty("User-Agent", "LunaMusic/1.0 (https://github.com/Lunatic5202/Luna)")
@@ -546,4 +549,6 @@ private const val LYRIC_POSITION_POLL_MS = 100L
 private const val LYRIC_POSITION_IDLE_POLL_MS = 300L
 private const val MAX_CACHED_LYRICS = 100
 private const val MAX_CACHED_LYRICS_CHARS = 100_000
-private const val LYRICS_RETRY_DELAY_MS = 650L
+private const val LYRICS_CONNECT_TIMEOUT_MS = 3_500
+private const val LYRICS_READ_TIMEOUT_MS = 4_000
+private const val LYRICS_RETRY_DELAY_MS = 250L
