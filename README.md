@@ -18,6 +18,8 @@ A native, offline-first Android music player built with Kotlin and Jetpack Compo
 - Animated library/player screen transitions
 - Full-screen Now Playing UI with seek progress, duration, and playback controls
 - Animated mini spectrum placeholder
+- Session queue sheet with direct track selection
+- Shuffle and repeat-off / repeat-all / repeat-one controls
 
 ## Build
 - Android Studio with Android SDK 36
@@ -46,7 +48,8 @@ First build requires internet for Gradle dependencies. Music playback itself is 
 - [x] Seek bar, progress and duration
 - [x] Animated library/player transitions
 - [ ] Search, album, artist and folder views
-- [ ] Playlists, queue, shuffle and repeat
+- [x] Playback queue, shuffle and repeat modes
+- [ ] User-created playlists and persistent queue editing
 - [x] Haze-backed backdrop blur and adaptive glass treatment
 - [ ] Refraction-driven glass highlights
 - [ ] Audio-reactive visualizer
