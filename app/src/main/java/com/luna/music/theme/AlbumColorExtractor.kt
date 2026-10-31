@@ -38,13 +38,16 @@ class AlbumColorExtractor(private val context: Context) {
                 val light = palette.lightVibrantSwatch?.rgb
                     ?: palette.lightMutedSwatch?.rgb
                     ?: lighten(vibrant, 0.34f)
+                val vividPrimary = boostVibrancy(vibrant, saturation = 1.14f, brightness = 1.04f)
+                val vividSecondary = boostVibrancy(light, saturation = 1.10f, brightness = 1.02f)
+                val vividGlow = boostVibrancy(muted, saturation = 1.20f, brightness = 1.06f)
 
                 AlbumPalette(
                     background = Color(darken(dark, 0.48f)),
                     surface = Color(darken(dark, 0.72f)),
-                    primary = Color(vibrant),
-                    secondary = Color(light),
-                    glow = Color(muted),
+                    primary = Color(vividPrimary),
+                    secondary = Color(vividSecondary),
+                    glow = Color(vividGlow),
                     onBackground = Color(0xFFF5F6F8)
                 )
             } catch (_: Exception) {
@@ -108,4 +111,12 @@ class AlbumColorExtractor(private val context: Context) {
             (AndroidColor.green(color) + (255 - AndroidColor.green(color)) * amount).toInt(),
             (AndroidColor.blue(color) + (255 - AndroidColor.blue(color)) * amount).toInt()
         )
+
+    private fun boostVibrancy(color: Int, saturation: Float, brightness: Float): Int {
+        val hsv = FloatArray(3)
+        AndroidColor.colorToHSV(color, hsv)
+        hsv[1] = (hsv[1] * saturation).coerceIn(0f, 0.94f)
+        hsv[2] = (hsv[2] * brightness).coerceAtMost(0.96f)
+        return AndroidColor.HSVToColor(hsv)
+    }
 }

@@ -581,6 +581,19 @@ private fun LunaHome(
             })
             .toList()
     }
+    val groupedTracks = remember(visibleTracks, libraryView) {
+        when (libraryView) {
+            LibraryView.Tracks -> emptyList()
+            LibraryView.Artists -> visibleTracks
+                .groupBy { it.artist.ifBlank { "Unknown artist" } }
+                .entries.sortedBy { it.key.lowercase() }
+                .map { it.key to it.value }
+            LibraryView.Albums -> visibleTracks
+                .groupBy { "${it.album.ifBlank { "Unknown album" }}\u0000${it.artist.ifBlank { "Unknown artist" }}" }
+                .entries.sortedBy { it.key.lowercase() }
+                .map { it.key to it.value }
+        }
+    }
     val liquidBackdrop = rememberLayerBackdrop()
     CompositionLocalProvider(LocalLunaLiquidBackdrop provides liquidBackdrop) {
     Box(
@@ -684,8 +697,7 @@ private fun LunaHome(
                             LibraryView.Tracks -> items(visibleTracks, key = { "track:${it.id}" }) { track ->
                                 LibraryTrackRow(track, palette, selectedTrack?.id == track.id, playing) { play(it) }
                             }
-                            LibraryView.Artists -> visibleTracks.groupBy { it.artist.ifBlank { "Unknown artist" } }
-                                .entries.sortedBy { it.key.lowercase() }.forEach { (artist, artistTracks) ->
+                            LibraryView.Artists -> groupedTracks.forEach { (artist, artistTracks) ->
                                     item(key = "artist:$artist") {
                                         LibraryGroupHeading("$artist · ${artistTracks.size}", palette)
                                     }
@@ -693,9 +705,7 @@ private fun LunaHome(
                                         LibraryTrackRow(track, palette, selectedTrack?.id == track.id, playing) { play(it) }
                                     }
                                 }
-                            LibraryView.Albums -> visibleTracks.groupBy {
-                                "${it.album.ifBlank { "Unknown album" }}\u0000${it.artist.ifBlank { "Unknown artist" }}"
-                            }.entries.sortedBy { it.key.lowercase() }.forEach { (key, albumTracks) ->
+                            LibraryView.Albums -> groupedTracks.forEach { (key, albumTracks) ->
                                 val (album, artist) = key.split("\u0000", limit = 2)
                                 item(key = "album:$key") {
                                     LibraryGroupHeading("$album · $artist · ${albumTracks.size}", palette)

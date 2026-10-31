@@ -22,13 +22,13 @@ data class AlbumPalette(
     )
 
     companion object {
-        // Neutral while artwork is loading or unavailable; track colours replace this palette.
+        // Luna's violet accent palette stays visible while artwork colours load or are unavailable.
         val Fallback = AlbumPalette(
-            background = Color(0xFF0B0D10),
-            surface = Color(0xFF171A1F),
-            primary = Color(0xFFD6D9DE),
-            secondary = Color(0xFFAEB5BF),
-            glow = Color(0xFF303640),
+            background = Color(0xFF0E0B14),
+            surface = Color(0xFF1B1524),
+            primary = Color(0xFFD2B5FF),
+            secondary = Color(0xFFFFB5D2),
+            glow = Color(0xFF68478C),
             onBackground = Color(0xFFF5F6F8)
         )
     }

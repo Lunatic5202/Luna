@@ -36,10 +36,11 @@ See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the device and release revi
 - Android Studio with Android SDK 36
 - JDK 17
 - Run `./gradlew :app:assembleDebug` (Windows: `gradlew.bat :app:assembleDebug`). The checked-in Gradle wrapper pins Gradle 8.13 and verifies its SHA-256 checksum.
+- Build the optimized release with `./gradlew :app:assembleRelease` (Windows: `gradlew.bat :app:assembleRelease`); R8 and resource shrinking are enabled. The resulting APK is unsigned and must be signed with your release key before distribution.
 - Open the repository as a Gradle project, sync dependencies, then run the `app` configuration on a device or emulator.
 - GitHub Actions uses the same wrapper command on pushes and pull requests to `main`.
 
-First build requires internet for Gradle dependencies. Lyrics are looked up on demand through LRCLIB using the track title, artist, album, and duration; music playback and library scanning stay on device.
+First build requires internet for Gradle dependencies. Lyrics are looked up on demand through LRCLIB, with lyrics.ovh as a fallback, using track metadata only; music playback and library scanning stay on device.
 
 ## Architecture notes
 - `MainActivity` owns UI state and connects to `LunaPlaybackService` through a Media3 `MediaController`. It does not own or release the player.

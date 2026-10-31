@@ -230,7 +230,7 @@ fun AboutScreen(palette: AlbumPalette, openDrawer: () -> Unit) {
             }
         }
         Spacer(Modifier.height(14.dp))
-        AboutInfoCard(palette, "Privacy", "Your library and combos stay on this device. LUNA does not upload your music.")
+        AboutInfoCard(palette, "Privacy", "Your library and combos stay on this device. Lyrics lookup sends song metadata to LRCLIB and, if needed, lyrics.ovh; audio files are never sent.")
         Spacer(Modifier.height(12.dp))
         AboutInfoCard(palette, "Permissions", "Music access lets LUNA find and play local audio. The optional visualizer reads playback audio only; LUNA does not record microphone input.")
         Spacer(Modifier.height(12.dp))

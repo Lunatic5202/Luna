@@ -2,7 +2,7 @@
 
 ## Build and package
 
-- [ ] GitHub Actions completes `:app:lintDebug` and `:app:assembleDebug` successfully.
+- [ ] GitHub Actions completes `:app:lintDebug`, `:app:assembleDebug`, and the optimized `:app:assembleRelease` successfully.
 - [ ] Install the APK on an Android 8.0+ device and launch it from a clean install.
 - [ ] Confirm the app label and adaptive icon render correctly in the launcher.
 
