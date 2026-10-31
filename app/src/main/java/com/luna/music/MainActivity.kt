@@ -8,6 +8,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -144,7 +149,15 @@ class MainActivity : ComponentActivity() {
             val hazeState = remember { HazeState() }
             androidx.compose.runtime.CompositionLocalProvider(LocalLunaHazeState provides hazeState) {
             LunaTheme(animatedPalette) {
-                if (showNowPlaying && selectedTrack != null) {
+                AnimatedContent(
+                    targetState = showNowPlaying && selectedTrack != null,
+                    transitionSpec = {
+                        (fadeIn(tween(300)) + slideInVertically { it / 14 }) togetherWith
+                            (fadeOut(tween(180)) + slideOutVertically { -it / 28 })
+                    },
+                    label = "screen-transition"
+                ) { showPlayer ->
+                    if (showPlayer && selectedTrack != null) {
                     NowPlayingScreen(
                         track = selectedTrack!!,
                         palette = animatedPalette,
@@ -155,56 +168,60 @@ class MainActivity : ComponentActivity() {
                         onNext = { mediaController?.seekToNextMediaItem() },
                         onPrevious = { mediaController?.seekToPreviousMediaItem() }
                     )
-                } else LunaHome(
-                    tracks = tracks,
-                    selectedTrack = selectedTrack,
-                    playing = isPlaying,
-                    permissionGranted = permissionGranted,
-                    palette = animatedPalette,
-                    openNowPlaying = { showNowPlaying = true },
-                    requestPermission = { permissionLauncher.launch(permission) },
-                    play = { track ->
-                        val index = tracks.indexOf(track).coerceAtLeast(0)
-                        val mediaItems = tracks.map { item ->
-                            MediaItem.Builder()
-                                .setUri(item.uri)
-                                .setMediaId(item.id.toString())
-                                .setMediaMetadata(
-                                    MediaMetadata.Builder()
-                                        .setTitle(item.title)
-                                        .setArtist(item.artist)
-                                        .setAlbumTitle(item.album)
-                                        .apply { item.artworkUri?.let(::setArtworkUri) }
-                                        .build()
-                                )
-                                .build()
-                        }
-                        mediaController?.let { controller ->
-                            controller.setMediaItems(mediaItems, index, 0L)
-                            controller.prepare()
-                            controller.play()
-                        }
-                        selectedTrack = track
-                        updatePaletteFor(track)
-                    },
-                    toggle = {
-                        if (mediaController?.isPlaying == true) {
-                            mediaController?.pause()
-                            isPlaying = false
-                        } else {
-                            mediaController?.play()
+
+                    } else {
+LunaHome(
+                        tracks = tracks,
+                        selectedTrack = selectedTrack,
+                        playing = isPlaying,
+                        permissionGranted = permissionGranted,
+                        palette = animatedPalette,
+                        openNowPlaying = { showNowPlaying = true },
+                        requestPermission = { permissionLauncher.launch(permission) },
+                        play = { track ->
+                            val index = tracks.indexOf(track).coerceAtLeast(0)
+                            val mediaItems = tracks.map { item ->
+                                MediaItem.Builder()
+                                    .setUri(item.uri)
+                                    .setMediaId(item.id.toString())
+                                    .setMediaMetadata(
+                                        MediaMetadata.Builder()
+                                            .setTitle(item.title)
+                                            .setArtist(item.artist)
+                                            .setAlbumTitle(item.album)
+                                            .apply { item.artworkUri?.let(::setArtworkUri) }
+                                            .build()
+                                    )
+                                    .build()
+                            }
+                            mediaController?.let { controller ->
+                                controller.setMediaItems(mediaItems, index, 0L)
+                                controller.prepare()
+                                controller.play()
+                            }
+                            selectedTrack = track
+                            updatePaletteFor(track)
+                        },
+                        toggle = {
+                            if (mediaController?.isPlaying == true) {
+                                mediaController?.pause()
+                                isPlaying = false
+                            } else {
+                                mediaController?.play()
+                                isPlaying = true
+                            }
+                        },
+                        next = {
+                            mediaController?.seekToNextMediaItem()
+                            isPlaying = true
+                        },
+                        previous = {
+                            mediaController?.seekToPreviousMediaItem()
                             isPlaying = true
                         }
-                    },
-                    next = {
-                        mediaController?.seekToNextMediaItem()
-                        isPlaying = true
-                    },
-                    previous = {
-                        mediaController?.seekToPreviousMediaItem()
-                        isPlaying = true
+                    )
                     }
-                )
+                }
             }
             }
         }
