@@ -50,6 +50,8 @@ import com.luna.music.data.Track
 import com.luna.music.playback.LunaPlaybackService
 import com.luna.music.theme.*
 import com.luna.music.ui.LunaGlassSurface
+import com.luna.music.ui.AlbumArtwork
+import com.luna.music.ui.NowPlayingScreen
 
 private val Muted = Color(0xFFAAA7BA)
 
@@ -64,6 +66,7 @@ class MainActivity : ComponentActivity() {
     private var permissionGranted by mutableStateOf(false)
     private var currentPalette by mutableStateOf(AlbumPalette.Fallback)
     private var paletteLoadToken = 0
+    private var showNowPlaying by mutableStateOf(false)
 
     private fun loadLibrary() {
         lifecycleScope.launch {
@@ -142,6 +145,7 @@ class MainActivity : ComponentActivity() {
                     playing = isPlaying,
                     permissionGranted = permissionGranted,
                     palette = animatedPalette,
+                    openNowPlaying = { showNowPlaying = true },
                     requestPermission = { permissionLauncher.launch(permission) },
                     play = { track ->
                         val index = tracks.indexOf(track).coerceAtLeast(0)
@@ -207,7 +211,8 @@ private fun LunaHome(
     play: (Track) -> Unit,
     toggle: () -> Unit,
     next: () -> Unit,
-    previous: () -> Unit
+    previous: () -> Unit,
+    openNowPlaying: () -> Unit
 ) {
     Box(
         Modifier.fillMaxSize().background(
@@ -250,11 +255,7 @@ private fun LunaHome(
                                 .clickable { play(track) }.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(Modifier.size(46.dp).clip(RoundedCornerShape(12.dp))
-                                .background(Brush.linearGradient(listOf(palette.primary, palette.secondary))),
-                                contentAlignment = Alignment.Center) {
-                                Text("♫", color = Color.White, fontSize = 23.sp)
-                            }
+                            AlbumArtwork(track.artworkUri?.toString(), Modifier.size(46.dp), palette)
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(track.title, color = palette.onBackground, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold)
@@ -269,22 +270,21 @@ private fun LunaHome(
             selectedTrack?.let { track ->
                 Spacer(Modifier.height(12.dp))
                 LunaGlassSurface(palette, Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(15.dp)) {
+                    Column(Modifier.clickable(onClick = openNowPlaying).padding(14.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            AlbumArtwork(track.artworkUri?.toString(), Modifier.size(48.dp), palette)
+                            Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text("NOW PLAYING", color = palette.secondary, fontSize = 9.sp, letterSpacing = 2.sp)
                                 Text(track.title, color = palette.onBackground, fontWeight = FontWeight.Bold, maxLines = 1)
                                 Text(track.artist, color = Muted, fontSize = 12.sp)
                             }
                             MiniSpectrum(palette, playing)
-                        }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = previous) { Icon(Icons.Default.SkipPrevious, null, tint = palette.onBackground) }
-                            IconButton(onClick = toggle, modifier = Modifier.size(54.dp).clip(CircleShape).background(palette.primary)) {
-                                Icon(if (playing) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = Color.White)
+                            IconButton(onClick = toggle) {
+                                Icon(if (playing) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = palette.onBackground)
                             }
-                            IconButton(onClick = next) { Icon(Icons.Default.SkipNext, null, tint = palette.onBackground) }
                         }
+                        Text("TAP TO OPEN PLAYER  ↗", color = Muted, fontSize = 8.sp, letterSpacing = 1.5.sp, modifier = Modifier.padding(top = 7.dp))
                     }
                 }
             }
