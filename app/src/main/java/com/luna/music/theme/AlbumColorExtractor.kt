@@ -75,7 +75,7 @@ class AlbumColorExtractor(private val context: Context) {
 
     private fun calculateInSampleSize(width: Int, height: Int, target: Int): Int {
         var sampleSize = 1
-        while (maxOf(width, height) / (sampleSize * 2) >= target) {
+        while (maxOf(width, height) / sampleSize > target) {
             sampleSize *= 2
         }
         return sampleSize
