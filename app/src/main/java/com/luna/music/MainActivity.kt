@@ -71,6 +71,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import com.luna.music.data.MusicRepository
 import com.luna.music.data.Track
 import com.luna.music.playback.LunaPlaybackService
@@ -375,8 +376,22 @@ private fun LunaHome(
                 }
             } else {
                 val libraryListState = rememberLazyListState()
+                val animatedTrackIds = remember { mutableSetOf<Long>() }
+                var hasUserScrolled by remember { mutableStateOf(false) }
+                LaunchedEffect(libraryListState) {
+                    snapshotFlow {
+                        libraryListState.firstVisibleItemIndex > 0 ||
+                            libraryListState.firstVisibleItemScrollOffset > 0
+                    }.first { it }
+                    hasUserScrolled = true
+                }
                 LazyColumn(Modifier.weight(1f), state = libraryListState, verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     itemsIndexed(tracks, key = { _, item -> item.id }) { index, track ->
+                        // Lazy items leave composition while scrolling. Only animate
+                        // their first appearance before the user starts scrolling.
+                        val animateEntrance = remember(track.id) {
+                            !hasUserScrolled && animatedTrackIds.add(track.id)
+                        }
                         val isSelected = selectedTrack?.id == track.id
                         val rowColor by animateColorAsState(
                             targetValue = if (isSelected) palette.primary.copy(alpha = .19f) else Color.White.copy(alpha = .045f),
@@ -384,7 +399,8 @@ private fun LunaHome(
                             label = "library-row-selection"
                         )
                         Row(
-                            Modifier.fillMaxWidth().animateItem().staggeredEntrance(index)
+                            Modifier.fillMaxWidth().animateItem()
+                                .then(if (animateEntrance) Modifier.staggeredEntrance(index) else Modifier)
                                 .animateContentSize(tween(260))
                                 .bouncyClickable(RoundedCornerShape(17.dp), rowColor) { play(track) }
                                 .padding(12.dp),
@@ -462,3 +478,4 @@ private fun LunaHome(
         }
     }
 }
+

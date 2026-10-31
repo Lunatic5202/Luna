@@ -5,12 +5,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.LruCache
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -36,8 +30,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luna.music.theme.AlbumPalette
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Shared in-memory artwork cache. Library rows, the mini-player and the
@@ -46,6 +45,8 @@ import kotlinx.coroutines.withContext
  */
 private object AlbumArtworkCache {
     private const val MAX_DECODED_DIMENSION = 768
+    private val loaderScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val inFlight = ConcurrentHashMap<String, CompletableDeferred<Bitmap?>>()
 
     private val memory = object : LruCache<String, Bitmap>(
         (Runtime.getRuntime().maxMemory() / 1024L / 8L).coerceAtMost(64L * 1024L).toInt()
@@ -65,36 +66,53 @@ private object AlbumArtworkCache {
     suspend fun load(context: Context, artworkUri: String): Bitmap? {
         get(artworkUri)?.let { return it }
 
-        val decoded = withContext(Dispatchers.IO) {
-            runCatching {
-                val uri = Uri.parse(artworkUri)
-                val resolver = context.contentResolver
-                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-
-                if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-                    return@runCatching null
+        val promise = CompletableDeferred<Bitmap?>()
+        val existing = inFlight.putIfAbsent(artworkUri, promise)
+        val shared = existing ?: promise.also { owner ->
+            loaderScope.launch {
+                try {
+                    val decoded = decode(context, artworkUri)
+                    decoded?.let { put(artworkUri, it) }
+                    owner.complete(decoded)
+                } catch (_: Exception) {
+                    owner.complete(null)
+                } finally {
+                    inFlight.remove(artworkUri, owner)
                 }
-
-                var sampleSize = 1
-                while (
-                    maxOf(bounds.outWidth, bounds.outHeight) / (sampleSize * 2) >= MAX_DECODED_DIMENSION
-                ) {
-                    sampleSize *= 2
-                }
-
-                val options = BitmapFactory.Options().apply {
-                    inSampleSize = sampleSize
-                    inPreferredConfig = Bitmap.Config.ARGB_8888
-                }
-                resolver.openInputStream(uri)?.use {
-                    BitmapFactory.decodeStream(it, null, options)
-                }
-            }.getOrNull()
+            }
         }
 
-        if (decoded != null) put(artworkUri, decoded)
-        return decoded
+        // The shared decode belongs to the application loader, so cancellation of
+        // one lazy row does not cancel the request needed by another surface.
+        return shared.await()
+    }
+
+    private suspend fun decode(context: Context, artworkUri: String): Bitmap? = withContext(Dispatchers.IO) {
+        runCatching {
+            val uri = Uri.parse(artworkUri)
+            val resolver = context.contentResolver
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                return@runCatching null
+            }
+
+            var sampleSize = 1
+            while (
+                maxOf(bounds.outWidth, bounds.outHeight) / (sampleSize * 2) >= MAX_DECODED_DIMENSION
+            ) {
+                sampleSize *= 2
+            }
+
+            val options = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
+            resolver.openInputStream(uri)?.use {
+                BitmapFactory.decodeStream(it, null, options)
+            }
+        }.getOrNull()
     }
 }
 
@@ -106,14 +124,14 @@ fun AlbumArtwork(
     shape: Shape = RoundedCornerShape(18.dp)
 ) {
     val context = LocalContext.current
-    var bitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var bitmap by remember(artworkUri) {
+        mutableStateOf(artworkUri?.takeIf(String::isNotBlank)?.let(AlbumArtworkCache::get))
+    }
 
     // Reuse decoded covers across every surface. In particular, artwork
     // already shown in a library row/mini-player is ready for fullscreen.
-    LaunchedEffect(artworkUri) {
-        if (artworkUri.isNullOrBlank()) {
-            bitmap = null
-        } else {
+    LaunchedEffect(artworkUri, context) {
+        if (!artworkUri.isNullOrBlank()) {
             bitmap = AlbumArtworkCache.load(context.applicationContext, artworkUri)
         }
     }
@@ -123,26 +141,19 @@ fun AlbumArtwork(
             .background(Brush.linearGradient(listOf(palette.primary, palette.secondary))),
         contentAlignment = Alignment.Center
     ) {
-        AnimatedContent(
-            targetState = bitmap,
-            transitionSpec = {
-                (fadeIn(tween(180)) + scaleIn(initialScale = .99f, animationSpec = tween(180))) togetherWith
-                    fadeOut(tween(120))
-            },
-            label = "album-artwork-crossfade"
-        ) { image ->
-            if (image != null && !image.isRecycled) {
-                Image(
-                    image.asImageBitmap(),
-                    contentDescription = "Album artwork",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("♫", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Light)
-                }
+        val image = bitmap
+        if (image != null && !image.isRecycled) {
+            Image(
+                image.asImageBitmap(),
+                contentDescription = "Album artwork",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("♫", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Light)
             }
         }
     }
 }
+
