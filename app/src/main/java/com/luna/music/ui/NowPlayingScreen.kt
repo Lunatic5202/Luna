@@ -24,8 +24,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlin.math.abs
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +37,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -63,6 +66,7 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -71,6 +75,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -79,6 +84,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -91,9 +97,12 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalDensity
 import com.luna.music.ui.LocalLunaHazeState
 import dev.chrisbanes.haze.hazeSource
 import androidx.media3.session.MediaController
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Timeline
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
@@ -126,6 +135,12 @@ fun NowPlayingScreen(
     var duration by remember(track.id) { mutableFloatStateOf(0f) }
     var dragging by remember { mutableStateOf(false) }
     var showQueue by remember { mutableStateOf(false) }
+    var queueItems by remember(controller) { mutableStateOf(readQueueItems(controller)) }
+    val queueListState = rememberLazyListState()
+    var draggedQueueKey by remember { mutableStateOf<String?>(null) }
+    var draggedQueueOffset by remember { mutableFloatStateOf(0f) }
+    val queueAutoScrollEdge = with(LocalDensity.current) { 54.dp.toPx() }
+    val queueAutoScrollStep = with(LocalDensity.current) { 18.dp.toPx() }
     val queueSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var volumeVisible by remember { mutableStateOf(false) }
     var showArtworkPeek by remember(track.id) { mutableStateOf(false) }
@@ -164,6 +179,43 @@ fun NowPlayingScreen(
                 position = controller.currentPosition.coerceAtLeast(0L).toFloat().coerceAtMost(duration)
             }
             delay(400)
+        }
+    }
+
+    DisposableEffect(controller) {
+        val listener = object : Player.Listener {
+            override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+                queueItems = readQueueItems(controller)
+            }
+        }
+        controller?.addListener(listener)
+        onDispose { controller?.removeListener(listener) }
+    }
+
+    val queueReorderEnabled = controller?.isCommandAvailable(Player.COMMAND_CHANGE_MEDIA_ITEMS) == true
+    val moveQueueEntry: (Int, Int) -> Unit = { fromIndex, toIndex ->
+        if (fromIndex in queueItems.indices && toIndex in queueItems.indices && fromIndex != toIndex) {
+            val reordered = queueItems.toMutableList()
+            val moved = reordered.removeAt(fromIndex)
+            reordered.add(toIndex, moved)
+            queueItems = reordered
+            if (queueReorderEnabled) controller?.moveMediaItem(fromIndex, toIndex)
+        }
+    }
+
+    LaunchedEffect(draggedQueueKey) {
+        while (draggedQueueKey != null) {
+            val draggedInfo = queueListState.layoutInfo.visibleItemsInfo
+                .firstOrNull { it.key == draggedQueueKey }
+            if (draggedInfo != null) {
+                val center = draggedInfo.offset + draggedInfo.size / 2f + draggedQueueOffset
+                val layout = queueListState.layoutInfo
+                when {
+                    center < layout.viewportStartOffset + queueAutoScrollEdge -> queueListState.scrollBy(-queueAutoScrollStep)
+                    center > layout.viewportEndOffset - queueAutoScrollEdge -> queueListState.scrollBy(queueAutoScrollStep)
+                }
+            }
+            delay(16L)
         }
     }
 
@@ -522,20 +574,81 @@ fun NowPlayingScreen(
             ) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(bottom = 28.dp)) {
                     Text("UP NEXT", color = palette.secondary, fontSize = 11.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
-                    Text("${controller?.mediaItemCount ?: 0} tracks in this session", color = palette.onBackground.copy(alpha = 0.6f), fontSize = 12.sp)
+                    Text("${queueItems.size} tracks · hold and drag to reorder", color = palette.onBackground.copy(alpha = 0.6f), fontSize = 12.sp)
                     Spacer(Modifier.height(14.dp))
-                    LazyColumn(Modifier.fillMaxWidth().heightIn(max = 430.dp)) {
-                        itemsIndexed((0 until (controller?.mediaItemCount ?: 0)).toList()) { index, _ ->
-                            val item = controller?.getMediaItemAt(index)
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 430.dp),
+                        state = queueListState
+                    ) {
+                        itemsIndexed(queueItems, key = { _, entry -> entry.key }) { index, entry ->
+                            val item = entry.mediaItem
+                            val isDragging = draggedQueueKey == entry.key
                             val isCurrent = index == (controller?.currentMediaItemIndex ?: -1)
                             val queueRowColor by animateColorAsState(
-                                if (isCurrent) palette.primary.copy(alpha = .18f) else Color.Transparent,
+                                when {
+                                    isDragging -> palette.primary.copy(alpha = .28f)
+                                    isCurrent -> palette.primary.copy(alpha = .18f)
+                                    else -> Color.Transparent
+                                },
                                 animationSpec = tween(260),
                                 label = "queue-current-track"
                             )
                             Row(
-                                Modifier.fillMaxWidth().animateItem().clip(RoundedCornerShape(14.dp))
+                                Modifier.fillMaxWidth().animateItem()
+                                    .zIndex(if (isDragging) 1f else 0f)
+                                    .graphicsLayer {
+                                        translationY = if (isDragging) draggedQueueOffset else 0f
+                                        scaleX = if (isDragging) 1.025f else 1f
+                                        scaleY = if (isDragging) 1.025f else 1f
+                                        shadowElevation = if (isDragging) 14.dp.toPx() else 0f
+                                    }
+                                    .clip(RoundedCornerShape(16.dp))
                                     .background(queueRowColor)
+                                    .pointerInput(entry.key, queueReorderEnabled) {
+                                        if (queueReorderEnabled) {
+                                            detectDragGesturesAfterLongPress(
+                                                onDragStart = {
+                                                    draggedQueueKey = entry.key
+                                                    draggedQueueOffset = 0f
+                                                },
+                                                onDragEnd = {
+                                                    draggedQueueKey = null
+                                                    draggedQueueOffset = 0f
+                                                },
+                                                onDragCancel = {
+                                                    draggedQueueKey = null
+                                                    draggedQueueOffset = 0f
+                                                },
+                                                onDrag = { change, amount ->
+                                                    change.consume()
+                                                    draggedQueueOffset += amount.y
+                                                    val draggedInfo = queueListState.layoutInfo.visibleItemsInfo
+                                                        .firstOrNull { it.key == entry.key }
+                                                    if (draggedInfo != null) {
+                                                        val draggedCenter = draggedInfo.offset +
+                                                            draggedInfo.size / 2f + draggedQueueOffset
+                                                        val target = queueListState.layoutInfo.visibleItemsInfo
+                                                            .asSequence()
+                                                            .filter { it.key != entry.key }
+                                                            .minByOrNull {
+                                                                kotlin.math.abs(it.offset + it.size / 2f - draggedCenter)
+                                                            }
+                                                        if (target != null &&
+                                                            kotlin.math.abs(target.offset + target.size / 2f - draggedCenter) > target.size * 0.42f
+                                                        ) {
+                                                            val fromIndex = queueItems.indexOfFirst { it.key == entry.key }
+                                                            val toIndex = target.index
+                                                            if (fromIndex >= 0 && toIndex in queueItems.indices && fromIndex != toIndex) {
+                                                                draggedQueueOffset = draggedCenter -
+                                                                    (target.offset + draggedInfo.size / 2f)
+                                                                moveQueueEntry(fromIndex, toIndex)
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
                                     .clickable {
                                         controller?.seekTo(index, 0L)
                                         controller?.play()
@@ -544,11 +657,24 @@ fun NowPlayingScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(if (isCurrent) "♫" else "${index + 1}", color = palette.secondary, modifier = Modifier.width(28.dp))
+                                AlbumArtwork(
+                                    artworkUri = item.mediaMetadata.artworkUri?.toString(),
+                                    modifier = Modifier.size(46.dp),
+                                    palette = palette,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(item?.mediaMetadata?.title?.toString() ?: "Unknown track", color = palette.onBackground, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal)
-                                    Text(item?.mediaMetadata?.artist?.toString() ?: "Unknown artist", color = palette.onBackground.copy(alpha = 0.55f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(item.mediaMetadata.title?.toString() ?: "Unknown track", color = palette.onBackground, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal)
+                                    Text(item.mediaMetadata.artist?.toString() ?: "Unknown artist", color = palette.onBackground.copy(alpha = 0.55f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                                 if (isCurrent) Text("PLAYING", color = palette.secondary, fontSize = 9.sp)
+                                Spacer(Modifier.width(8.dp))
+                                Icon(
+                                    Icons.Default.DragHandle,
+                                    contentDescription = "Hold and drag to reorder",
+                                    tint = palette.onBackground.copy(alpha = if (queueReorderEnabled) 0.48f else 0.18f)
+                                )
                             }
                         }
                     }
@@ -580,6 +706,25 @@ fun NowPlayingScreen(
                     )
                 }
         )
+    }
+}
+
+private data class QueueItemEntry(
+    val key: String,
+    val mediaItem: MediaItem
+)
+
+private fun readQueueItems(controller: MediaController?): List<QueueItemEntry> {
+    if (controller == null) return emptyList()
+    val occurrences = mutableMapOf<String, Int>()
+    return (0 until controller.mediaItemCount).map { index ->
+        val item = controller.getMediaItemAt(index)
+        val identity = item.mediaId.ifBlank {
+            item.mediaMetadata.title?.toString().orEmpty().ifBlank { "queue-item-$index" }
+        }
+        val occurrence = occurrences[identity] ?: 0
+        occurrences[identity] = occurrence + 1
+        QueueItemEntry("$identity#$occurrence", item)
     }
 }
 
