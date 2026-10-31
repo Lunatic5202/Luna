@@ -88,6 +88,8 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
@@ -117,6 +119,10 @@ import dev.chrisbanes.haze.hazeSource
 private enum class LunaSection { Library, Equalizer, Combos, About }
 private enum class LibraryView { Tracks, Artists, Albums }
 private enum class LibrarySort { Title, Artist, Album }
+private data class LibraryDisplayData(
+    val visibleTracks: List<Track>,
+    val groupedTracks: List<Pair<String, List<Track>>>
+)
 
 class MainActivity : ComponentActivity() {
     private var mediaController: MediaController? = null
@@ -572,30 +578,39 @@ private fun LunaHome(
     var showSortMenu by remember { mutableStateOf(false) }
     val libraryView = LibraryView.entries.firstOrNull { it.name == selectedViewName } ?: LibraryView.Tracks
     val librarySort = LibrarySort.entries.firstOrNull { it.name == selectedSortName } ?: LibrarySort.Title
-    val visibleTracks = remember(tracks, searchQuery, librarySort) {
+    var libraryDisplay by remember { mutableStateOf(LibraryDisplayData(tracks, emptyList())) }
+    LaunchedEffect(tracks, searchQuery, librarySort, libraryView) {
         val query = searchQuery.trim()
-        tracks.asSequence()
-            .filter { query.isEmpty() || listOf(it.title, it.artist, it.album).any { value -> value.contains(query, ignoreCase = true) } }
-            .sortedWith(when (librarySort) {
-                LibrarySort.Title -> compareBy<Track, String>(String.CASE_INSENSITIVE_ORDER) { it.title }
-                LibrarySort.Artist -> compareBy<Track, String>(String.CASE_INSENSITIVE_ORDER) { it.artist }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.title }
-                LibrarySort.Album -> compareBy<Track, String>(String.CASE_INSENSITIVE_ORDER) { it.album }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.title }
-            })
-            .toList()
-    }
-    val groupedTracks = remember(visibleTracks, libraryView) {
-        when (libraryView) {
-            LibraryView.Tracks -> emptyList()
-            LibraryView.Artists -> visibleTracks
-                .groupBy { it.artist.ifBlank { "Unknown artist" } }
-                .entries.sortedBy { it.key.lowercase() }
-                .map { it.key to it.value }
-            LibraryView.Albums -> visibleTracks
-                .groupBy { "${it.album.ifBlank { "Unknown album" }}\u0000${it.artist.ifBlank { "Unknown artist" }}" }
-                .entries.sortedBy { it.key.lowercase() }
-                .map { it.key to it.value }
+        libraryDisplay = withContext(Dispatchers.Default) {
+            val visible = tracks.asSequence()
+                .filter {
+                    query.isEmpty() || it.title.contains(query, ignoreCase = true) ||
+                        it.artist.contains(query, ignoreCase = true) || it.album.contains(query, ignoreCase = true)
+                }
+                .sortedWith(when (librarySort) {
+                    LibrarySort.Title -> compareBy<Track, String>(String.CASE_INSENSITIVE_ORDER) { it.title }
+                    LibrarySort.Artist -> compareBy<Track, String>(String.CASE_INSENSITIVE_ORDER) { it.artist }
+                        .thenBy(String.CASE_INSENSITIVE_ORDER) { it.title }
+                    LibrarySort.Album -> compareBy<Track, String>(String.CASE_INSENSITIVE_ORDER) { it.album }
+                        .thenBy(String.CASE_INSENSITIVE_ORDER) { it.title }
+                })
+                .toList()
+            val groups = when (libraryView) {
+                LibraryView.Tracks -> emptyList()
+                LibraryView.Artists -> visible
+                    .groupBy { it.artist.ifBlank { "Unknown artist" } }
+                    .entries.sortedBy { it.key.lowercase() }
+                    .map { it.key to it.value }
+                LibraryView.Albums -> visible
+                    .groupBy { "${it.album.ifBlank { "Unknown album" }}\u0000${it.artist.ifBlank { "Unknown artist" }}" }
+                    .entries.sortedBy { it.key.lowercase() }
+                    .map { it.key to it.value }
+            }
+            LibraryDisplayData(visible, groups)
         }
     }
+    val visibleTracks = libraryDisplay.visibleTracks
+    val groupedTracks = libraryDisplay.groupedTracks
     val liquidBackdrop = rememberLayerBackdrop()
     CompositionLocalProvider(LocalLunaLiquidBackdrop provides liquidBackdrop) {
     Box(

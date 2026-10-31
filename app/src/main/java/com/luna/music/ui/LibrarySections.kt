@@ -78,6 +78,7 @@ fun CombosScreen(
     onPlay: (MusicCombo) -> Unit
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
+    val tracksById = remember(tracks) { tracks.associateBy(Track::id) }
     LunaSettingsScaffold(palette, "Combos", "Your playlists, made your way.", openDrawer) {
         Button(
             onClick = { showCreateDialog = true },
@@ -108,7 +109,9 @@ fun CombosScreen(
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.weight(1f)) {
                 items(combos, key = { it.id }) { combo ->
-                    val comboTracks = combo.trackIds.mapNotNull { id -> tracks.firstOrNull { it.id == id } }
+                    val comboTracks = remember(combo.trackIds, tracksById) {
+                        combo.trackIds.mapNotNull(tracksById::get)
+                    }
                     LunaGlassSurface(palette, Modifier.fillMaxWidth()) {
                         Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 13.dp, bottom = 12.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
