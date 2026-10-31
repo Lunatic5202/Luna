@@ -38,7 +38,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import androidx.media3.common.MediaItem\nimport androidx.media3.common.MediaMetadata\nimport androidx.media3.common.Player\nimport androidx.media3.session.MediaController\nimport androidx.media3.session.SessionToken\nimport com.google.common.util.concurrent.ListenableFuture
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
+import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.launch
 import com.luna.music.data.MusicRepository
 import com.luna.music.data.Track
@@ -49,7 +54,8 @@ import com.luna.music.ui.LunaGlassSurface
 private val Muted = Color(0xFFAAA7BA)
 
 class MainActivity : ComponentActivity() {
-    private var mediaController: MediaController? = null\n    private var controllerFuture: ListenableFuture<MediaController>? = null
+    private var mediaController: MediaController? = null
+    private var controllerFuture: ListenableFuture<MediaController>? = null
     private lateinit var repository: MusicRepository
     private lateinit var themeEngine: LunaThemeEngine
     private var tracks by mutableStateOf<List<Track>>(emptyList())
