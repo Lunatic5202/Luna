@@ -38,18 +38,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import androidx.media3.common.Player
+import androidx.media3.common.MediaItem\nimport androidx.media3.common.MediaMetadata\nimport androidx.media3.common.Player\nimport androidx.media3.session.MediaController\nimport androidx.media3.session.SessionToken\nimport com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.launch
 import com.luna.music.data.MusicRepository
 import com.luna.music.data.Track
-import com.luna.music.playback.MusicPlayer
+import com.luna.music.playback.LunaPlaybackService
 import com.luna.music.theme.*
 import com.luna.music.ui.LunaGlassSurface
 
 private val Muted = Color(0xFFAAA7BA)
 
 class MainActivity : ComponentActivity() {
-    private lateinit var musicPlayer: MusicPlayer
+    private var mediaController: MediaController? = null\n    private var controllerFuture: ListenableFuture<MediaController>? = null
     private lateinit var repository: MusicRepository
     private lateinit var themeEngine: LunaThemeEngine
     private var tracks by mutableStateOf<List<Track>>(emptyList())
@@ -90,7 +90,7 @@ class MainActivity : ComponentActivity() {
         permissionGranted = ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
         if (permissionGranted) loadLibrary()
 
-        musicPlayer.exoPlayer.addListener(object : Player.Listener {
+        val sessionToken = SessionToken(this, android.content.ComponentName(this, LunaPlaybackService::class.java))\n        controllerFuture = MediaController.Builder(this, sessionToken).buildAsync().also { future ->\n            future.addListener({\n                if (isFinishing || isDestroyed) return@addListener\n                mediaController = future.get()\n                mediaController?.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlayingNow: Boolean) {
                 isPlaying = isPlayingNow
             }
@@ -114,7 +114,7 @@ class MainActivity : ComponentActivity() {
                     requestPermission = { permissionLauncher.launch(permission) },
                     play = { track ->
                         val index = tracks.indexOf(track).coerceAtLeast(0)
-                        musicPlayer.setQueue(tracks, index)
+                        val items = tracks.map { item ->\n                            MediaItem.Builder()\n                                .setUri(item.uri)\n                                .setMediaId(item.id.toString())\n                                .setMediaMetadata(MediaMetadata.Builder()\n                                    .setTitle(item.title)\n                                    .setArtist(item.artist)\n                                    .setAlbumTitle(item.album)\n                                    .setArtworkUri(item.artworkUri)\n                                    .build())\n                                .build()\n                        }\n                        mediaController?.setMediaItems(items, index, 0L)\n                        mediaController?.prepare()\n                        mediaController?.play()
                         selectedTrack = track
                         isPlaying = true
                         updatePaletteFor(track)
@@ -124,16 +124,16 @@ class MainActivity : ComponentActivity() {
                             musicPlayer.exoPlayer.pause()
                             isPlaying = false
                         } else {
-                            musicPlayer.exoPlayer.play()
+                            mediaController?.play()
                             isPlaying = true
                         }
                     },
                     next = {
-                        musicPlayer.exoPlayer.seekToNextMediaItem()
+                        mediaController?.seekToNextMediaItem()
                         isPlaying = true
                     },
                     previous = {
-                        musicPlayer.exoPlayer.seekToPreviousMediaItem()
+                        mediaController?.seekToPreviousMediaItem()
                         isPlaying = true
                     }
                 )
