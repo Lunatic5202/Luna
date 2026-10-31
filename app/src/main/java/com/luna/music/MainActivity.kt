@@ -139,7 +139,18 @@ class MainActivity : ComponentActivity() {
         setContent {
             val animatedPalette = rememberLunaPalette(currentPalette)
             LunaTheme(animatedPalette) {
-                LunaHome(
+                if (showNowPlaying && selectedTrack != null) {
+                    NowPlayingScreen(
+                        track = selectedTrack!!,
+                        palette = animatedPalette,
+                        playing = isPlaying,
+                        controller = mediaController,
+                        onBack = { showNowPlaying = false },
+                        onToggle = { if (mediaController?.isPlaying == true) mediaController?.pause() else mediaController?.play() },
+                        onNext = { mediaController?.seekToNextMediaItem() },
+                        onPrevious = { mediaController?.seekToPreviousMediaItem() }
+                    )
+                } else LunaHome(
                     tracks = tracks,
                     selectedTrack = selectedTrack,
                     playing = isPlaying,
