@@ -29,7 +29,13 @@ jobs:
           gradle-version: '8.13'
 
       - name: Assemble debug APK
-        run: gradle :app:assembleDebug
+        run: |
+          set +e
+          gradle :app:assembleDebug --console=plain > build.log 2>&1
+          status=$?
+          msg=$(grep -E '^e: ' build.log | head -45 | sed 's/^e: file:\/\/\/home\/runner\/work\/[^/]*\/[^/]*\///' | sed 's/$/%0A/' | tr -d '\n')
+          echo "::error title=Kotlin errors::${msg}"
+          exit $status
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
