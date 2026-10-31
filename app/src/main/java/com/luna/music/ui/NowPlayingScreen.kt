@@ -70,7 +70,6 @@ import kotlinx.coroutines.delay
 @Composable
 fun NowPlayingScreen(
     track: Track,
-    tracks: List<Track>,
     palette: AlbumPalette,
     playing: Boolean,
     controller: MediaController?,
