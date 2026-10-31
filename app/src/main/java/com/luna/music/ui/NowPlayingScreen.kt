@@ -44,6 +44,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.RectangleShape
+import com.luna.music.ui.LocalLunaHazeState
+import dev.chrisbanes.haze.hazeSource
 import androidx.media3.session.MediaController
 import com.luna.music.data.Track
 import com.luna.music.theme.AlbumPalette
@@ -77,9 +82,9 @@ fun NowPlayingScreen(
     }
 
     Box(
-        Modifier.fillMaxSize().background(
-            Brush.verticalGradient(listOf(palette.glow.copy(alpha = .65f), palette.background, Color(0xFF07080D)))
-        )
+        Modifier.fillMaxSize()
+            .hazeSource(state = LocalLunaHazeState.current, zIndex = -1f)
+            .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = .65f), palette.background, Color(0xFF07080D))))
     ) {
         Column(
             Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 26.dp, vertical = 18.dp),
