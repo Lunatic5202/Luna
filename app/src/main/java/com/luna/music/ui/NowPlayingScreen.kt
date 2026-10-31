@@ -86,19 +86,29 @@ import androidx.compose.ui.graphics.RectangleShape
 import com.luna.music.ui.LocalLunaHazeState
 import dev.chrisbanes.haze.hazeSource
 import androidx.media3.session.MediaController
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import com.luna.music.data.Track
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import com.luna.music.theme.AlbumPalette
 import kotlinx.coroutines.delay
 
-@OptIn(ExperimentalMaterial3Api::class, UnstableApi::class)
+@OptIn(ExperimentalMaterial3Api::class, UnstableApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun NowPlayingScreen(
     track: Track,
     palette: AlbumPalette,
     playing: Boolean,
     controller: MediaController?,
+    sharedScope: SharedTransitionScope,
+    visibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     onToggle: () -> Unit,
     onNext: () -> Unit,
@@ -113,6 +123,8 @@ fun NowPlayingScreen(
     val volumeAlpha by animateFloatAsState(if (volumeVisible) 1f else 0f, animationSpec = tween(180), label = "volume-indicator")
     val progress by animateFloatAsState(position, animationSpec = tween(250, easing = FastOutSlowInEasing), label = "track-progress")
     var volumePercent by remember { mutableFloatStateOf(0f) }
+    val scope = rememberCoroutineScope()
+    val dragX = remember { Animatable(0f) }
     val artworkPulse by rememberInfiniteTransition(label = "artwork-pulse").animateFloat(
         initialValue = 1f,
         targetValue = 1.018f,
@@ -123,8 +135,8 @@ fun NowPlayingScreen(
         label = "artwork-pulse-scale"
     )
     val artworkScale by animateFloatAsState(
-        targetValue = if (playing) artworkPulse else 1f,
-        animationSpec = tween(420, easing = FastOutSlowInEasing),
+        targetValue = if (playing) artworkPulse else 0.93f,
+        animationSpec = spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessLow),
         label = "artwork-playing-scale"
     )
 
@@ -175,7 +187,18 @@ fun NowPlayingScreen(
             Modifier.fillMaxSize().statusBarsPadding()
                 .padding(start = 26.dp, end = 26.dp, top = 18.dp, bottom = domeTotal)
         ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.fillMaxWidth().then(
+                    with(visibilityScope) {
+                        Modifier.animateEnterExit(
+                            enter = fadeIn(tween(420, delayMillis = 140)) +
+                                slideInVertically(tween(480, easing = FastOutSlowInEasing)) { -it / 2 },
+                            exit = fadeOut(tween(160))
+                        )
+                    }
+                ),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = palette.onBackground)
                 }
@@ -217,9 +240,11 @@ fun NowPlayingScreen(
                     )
                     AlbumArtwork(
                         artworkUri = track.artworkUri?.toString(),
-                        modifier = Modifier.fillMaxSize(0.84f).graphicsLayer {
+                        modifier = Modifier.lunaSharedArtwork(sharedScope, visibilityScope).fillMaxSize(0.84f).graphicsLayer {
                             scaleX = artworkScale
                             scaleY = artworkScale
+                            translationX = dragX.value
+                            rotationZ = dragX.value / 34f
                         }.clip(CircleShape)
                             .pointerInput(controller, track.id) {
                                 var totalX = 0f
@@ -235,14 +260,24 @@ fun NowPlayingScreen(
                                         if (axis == 1 && abs(totalX) > 72.dp.toPx()) {
                                             if (totalX < 0f) onNext() else onPrevious()
                                         }
+                                        scope.launch {
+                                            dragX.animateTo(0f, spring(dampingRatio = 0.5f, stiffness = 260f))
+                                        }
                                     },
-                                    onDragCancel = { },
+                                    onDragCancel = {
+                                        scope.launch {
+                                            dragX.animateTo(0f, spring(dampingRatio = 0.6f, stiffness = 300f))
+                                        }
+                                    },
                                     onDrag = { change, amount ->
                                         change.consume()
                                         totalX += amount.x
                                         totalY += amount.y
                                         if (axis == 0 && (abs(totalX) > 10.dp.toPx() || abs(totalY) > 10.dp.toPx())) {
                                             axis = if (abs(totalX) > abs(totalY)) 1 else 2
+                                        }
+                                        if (axis == 1) {
+                                            scope.launch { dragX.snapTo(totalX * 0.5f) }
                                         }
                                         if (axis == 2 && controller != null) {
                                             val nextVolume = (controller.volume - amount.y / size.height * 1.35f).coerceIn(0f, 1f)
@@ -276,7 +311,14 @@ fun NowPlayingScreen(
 
         // Bottom dome: a large circle cropped by the screen edges.
         Box(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(domeTotal)
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(domeTotal).then(
+                with(visibilityScope) {
+                    Modifier.animateEnterExit(
+                        enter = slideInVertically(tween(620, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(260)),
+                        exit = slideOutVertically(tween(360, easing = FastOutSlowInEasing)) { it } + fadeOut(tween(220))
+                    )
+                }
+            )
         ) {
             PlaybackVisualizer(
                 controller = controller,
@@ -353,14 +395,15 @@ fun NowPlayingScreen(
                             animationSpec = tween(240),
                             label = "shuffle-state"
                         )
-                        IconButton(onClick = { controller?.shuffleModeEnabled = !(controller?.shuffleModeEnabled ?: false) }) {
+                        BouncyIconButton(onClick = { controller?.shuffleModeEnabled = !(controller?.shuffleModeEnabled ?: false) }) {
                             Icon(Icons.Default.Shuffle, contentDescription = "Toggle shuffle", tint = shuffleTint)
                         }
-                        IconButton(onClick = onPrevious) {
+                        BouncyIconButton(onClick = onPrevious) {
                             Icon(Icons.Default.SkipPrevious, contentDescription = "Previous track", tint = palette.onBackground, modifier = Modifier.size(32.dp))
                         }
-                        IconButton(
+                        BouncyIconButton(
                             onClick = onToggle,
+                            pressedScale = 0.9f,
                             modifier = Modifier.size(64.dp).clip(CircleShape).background(
                                 Brush.linearGradient(listOf(palette.primary, palette.secondary))
                             )
@@ -376,10 +419,10 @@ fun NowPlayingScreen(
                                 Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = if (isPlaying) "Pause" else "Play", tint = Color.White, modifier = Modifier.size(34.dp))
                             }
                         }
-                        IconButton(onClick = onNext) {
+                        BouncyIconButton(onClick = onNext) {
                             Icon(Icons.Default.SkipNext, contentDescription = "Next track", tint = palette.onBackground, modifier = Modifier.size(32.dp))
                         }
-                        IconButton(onClick = {
+                        BouncyIconButton(onClick = {
                             controller?.repeatMode = when (controller?.repeatMode) {
                                 Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
                                 Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
