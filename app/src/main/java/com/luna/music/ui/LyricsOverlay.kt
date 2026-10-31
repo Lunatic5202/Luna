@@ -210,19 +210,46 @@ private suspend fun fetchLyrics(context: Context, track: Track, durationSeconds:
 
     val result = fetchLyricsFromNetwork(track, durationSeconds)
     when (result) {
-        is LyricsState.Available -> cache.edit {
-            putString("${cacheKey}_text", result.text)
-            putBoolean("${cacheKey}_not_found", false)
-            putLong("${cacheKey}_saved", System.currentTimeMillis())
+        is LyricsState.Available -> if (result.text.length <= MAX_CACHED_LYRICS_CHARS) {
+            cache.edit {
+                putString("${cacheKey}_text", result.text)
+                putBoolean("${cacheKey}_not_found", false)
+                putLong("${cacheKey}_saved", System.currentTimeMillis())
+            }
+            trimLyricsCache(cache, cacheKey)
         }
-        LyricsState.NotFound -> cache.edit {
-            remove("${cacheKey}_text")
-            putBoolean("${cacheKey}_not_found", true)
-            putLong("${cacheKey}_saved", System.currentTimeMillis())
+        LyricsState.NotFound -> {
+            cache.edit {
+                remove("${cacheKey}_text")
+                putBoolean("${cacheKey}_not_found", true)
+                putLong("${cacheKey}_saved", System.currentTimeMillis())
+            }
+            trimLyricsCache(cache, cacheKey)
         }
         else -> Unit // Transient failures should be retried on the next attempt.
     }
     result
+}
+
+private fun trimLyricsCache(cache: android.content.SharedPreferences, newestKey: String) {
+    val savedEntries = cache.all.entries
+        .filter { it.key.endsWith("_saved") }
+        .map { it.key.removeSuffix("_saved") to (it.value as? Long ?: 0L) }
+    val overflow = savedEntries.size - MAX_CACHED_LYRICS
+    if (overflow <= 0) return
+    val oldest = savedEntries.asSequence()
+        .filter { it.first != newestKey }
+        .sortedBy { it.second }
+        .take(overflow)
+        .map { it.first }
+        .toList()
+    if (oldest.isNotEmpty()) cache.edit {
+        oldest.forEach { key ->
+            remove("${key}_text")
+            remove("${key}_not_found")
+            remove("${key}_saved")
+        }
+    }
 }
 
 private fun lyricsCacheKey(track: Track): String {
@@ -335,3 +362,5 @@ private fun readLimitedResponse(reader: BufferedReader): String {
 private const val MAX_RESPONSE_CHARS = 1_000_000
 private const val LYRICS_CACHE_TTL_MS = 30L * 24 * 60 * 60 * 1000
 private const val NEGATIVE_CACHE_TTL_MS = 12L * 60 * 60 * 1000
+private const val MAX_CACHED_LYRICS = 100
+private const val MAX_CACHED_LYRICS_CHARS = 100_000
