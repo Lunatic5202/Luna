@@ -52,6 +52,9 @@ import com.luna.music.theme.*
 import com.luna.music.ui.LunaGlassSurface
 import com.luna.music.ui.AlbumArtwork
 import com.luna.music.ui.NowPlayingScreen
+import com.luna.music.ui.LocalLunaHazeState
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
 
 private val Muted = Color(0xFFAAA7BA)
 
@@ -138,6 +141,8 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val animatedPalette = rememberLunaPalette(currentPalette)
+            val hazeState = remember { HazeState() }
+            androidx.compose.runtime.CompositionLocalProvider(LocalLunaHazeState provides hazeState) {
             LunaTheme(animatedPalette) {
                 if (showNowPlaying && selectedTrack != null) {
                     NowPlayingScreen(
@@ -201,6 +206,7 @@ class MainActivity : ComponentActivity() {
                     }
                 )
             }
+            }
         }
     }
 
@@ -226,9 +232,9 @@ private fun LunaHome(
     openNowPlaying: () -> Unit
 ) {
     Box(
-        Modifier.fillMaxSize().background(
-            Brush.verticalGradient(listOf(palette.glow.copy(alpha = .42f), palette.background, Color(0xFF07080D)))
-        )
+        Modifier.fillMaxSize()
+            .hazeSource(state = LocalLunaHazeState.current, zIndex = -1f)
+            .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = .42f), palette.background, Color(0xFF07080D))))
     ) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 22.dp)) {
             Row(Modifier.fillMaxWidth().padding(top = 20.dp), verticalAlignment = Alignment.CenterVertically) {
