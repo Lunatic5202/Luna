@@ -11,24 +11,27 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * Resolves and caches artwork palettes.
+ * Resolves and caches artwork palettes per track.
  *
- * The cache is bounded so a large library cannot grow the app's memory use
- * indefinitely. A mutex prevents duplicate concurrent decodes for the same
- * rapid sequence of track changes.
+ * Tracks without a separate artwork URI still get their own cache entry,
+ * allowing embedded artwork to be extracted from the audio file.
  */
 class LunaThemeEngine(context: Context) {
     private val extractor = AlbumColorExtractor(context.applicationContext)
     private val cache = LruCache<String, AlbumPalette>(48)
     private val extractionMutex = Mutex()
 
-    suspend fun paletteFor(artwork: Uri?): AlbumPalette {
-        val key = artwork?.toString() ?: FALLBACK_KEY
+    suspend fun paletteFor(artwork: Uri?, track: Uri?): AlbumPalette {
+        val key = when {
+            artwork != null -> "art:${artwork}"
+            track != null -> "track:${track}"
+            else -> FALLBACK_KEY
+        }
         cache.get(key)?.let { return it }
 
         return extractionMutex.withLock {
             cache.get(key)?.let { return@withLock it }
-            extractor.extract(artwork).also { cache.put(key, it) }
+            extractor.extract(artwork, track).also { cache.put(key, it) }
         }
     }
 
