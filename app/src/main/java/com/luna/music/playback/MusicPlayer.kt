@@ -9,7 +9,13 @@ class MusicPlayer(context: Context) {
     val exoPlayer: ExoPlayer = ExoPlayer.Builder(context).build()
 
     fun setQueue(tracks: List<Track>, startIndex: Int) {
-        exoPlayer.setMediaItems(tracks.map { MediaItem.fromUri(it.uri) }, startIndex, 0L)
+        val items = tracks.map { track ->
+            MediaItem.Builder()
+                .setUri(track.uri)
+                .setMediaId(track.id.toString())
+                .build()
+        }
+        exoPlayer.setMediaItems(items, startIndex, 0L)
         exoPlayer.prepare()
         exoPlayer.play()
     }
