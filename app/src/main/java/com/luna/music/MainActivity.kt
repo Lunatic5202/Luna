@@ -110,6 +110,7 @@ import com.luna.music.ui.CombosScreen
 import com.luna.music.ui.AboutScreen
 import com.luna.music.ui.readableContent
 import com.luna.music.ui.LocalLunaHazeState
+import com.luna.music.ui.LunaBrandLogo
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 
@@ -506,10 +507,11 @@ private fun LunaPermissionIntro(
             Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.Start
         ) {
-            Text("L U N A", color = palette.onBackground, fontSize = 30.sp,
-                fontWeight = FontWeight.Bold, letterSpacing = 6.sp,
-                modifier = Modifier.staggeredEntrance(0, 110))
-            Spacer(Modifier.height(42.dp))
+            LunaBrandLogo(
+                modifier = Modifier.size(148.dp).staggeredEntrance(0, 110),
+                contentDescription = "Luna music player"
+            )
+            Spacer(Modifier.height(28.dp))
             Text("Your music. Your space.", color = palette.onBackground,
                 fontSize = 28.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.staggeredEntrance(1, 110))
@@ -606,15 +608,17 @@ private fun LunaHome(
                 .layerBackdrop(liquidBackdrop)
         )
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 22.dp)) {
-            Row(Modifier.fillMaxWidth().padding(top = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("L U N A", color = palette.onBackground, fontSize = 26.sp, fontWeight = FontWeight.Black, letterSpacing = 5.sp)
-                }
+            Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                LunaBrandLogo(
+                    modifier = Modifier.size(82.dp),
+                    contentDescription = "Luna music player"
+                )
+                Spacer(Modifier.weight(1f))
                 IconButton(onClick = openDrawer) {
                     Icon(Icons.Default.Menu, contentDescription = "Open navigation", tint = palette.onBackground)
                 }
             }
-            Spacer(Modifier.height(30.dp))
+            Spacer(Modifier.height(16.dp))
             Text("Library", color = palette.onBackground, fontSize = 23.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(12.dp))
 
@@ -846,7 +850,10 @@ private fun LunaNavigationDrawer(
                 .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = 0.55f), palette.background, palette.backgroundBottom)))
                 .padding(horizontal = 18.dp, vertical = 26.dp)
         ) {
-            Text("L U N A", color = palette.onBackground, fontSize = 24.sp, fontWeight = FontWeight.Black, letterSpacing = 4.sp)
+            LunaBrandLogo(
+                modifier = Modifier.size(112.dp),
+                contentDescription = "Luna music player"
+            )
             Spacer(Modifier.height(6.dp))
             Text("Your music, your space.", color = palette.onBackground.copy(alpha = 0.78f), fontSize = 13.sp)
             Spacer(Modifier.height(28.dp))
