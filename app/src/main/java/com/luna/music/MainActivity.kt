@@ -37,12 +37,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import androidx.media3.common.Player
 import com.luna.music.data.MusicRepository
 import com.luna.music.data.Track
 import com.luna.music.playback.MusicPlayer
 import com.luna.music.theme.*
 import com.luna.music.ui.LunaGlassSurface
-import kotlinx.coroutines.launch
 
 private val Muted = Color(0xFFAAA7BA)
 
@@ -55,6 +56,15 @@ class MainActivity : ComponentActivity() {
     private var isPlaying by mutableStateOf(false)
     private var permissionGranted by mutableStateOf(false)
     private var currentPalette by mutableStateOf(AlbumPalette.Fallback)
+    private var paletteLoadToken = 0
+
+    private fun updatePaletteFor(track: Track?) {
+        val token = ++paletteLoadToken
+        lifecycleScope.launch {
+            val palette = themeEngine.paletteFor(track?.artworkUri)
+            if (token == paletteLoadToken) currentPalette = palette
+        }
+    }
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -73,8 +83,19 @@ class MainActivity : ComponentActivity() {
         permissionGranted = ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
         if (permissionGranted) tracks = repository.loadTracks()
 
+        musicPlayer.exoPlayer.addListener(object : Player.Listener {
+            override fun onIsPlayingChanged(isPlayingNow: Boolean) {
+                isPlaying = isPlayingNow
+            }
+
+            override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
+                val track = tracks.firstOrNull { it.id.toString() == mediaItem?.mediaId } ?: return
+                selectedTrack = track
+                updatePaletteFor(track)
+            }
+        })
+
         setContent {
-            val scope = rememberCoroutineScope()
             val animatedPalette = rememberLunaPalette(currentPalette)
             LunaTheme(animatedPalette) {
                 LunaHome(
@@ -89,7 +110,7 @@ class MainActivity : ComponentActivity() {
                         musicPlayer.setQueue(tracks, index)
                         selectedTrack = track
                         isPlaying = true
-                        scope.launch { currentPalette = themeEngine.paletteFor(track.artworkUri) }
+                        updatePaletteFor(track)
                     },
                     toggle = {
                         if (musicPlayer.exoPlayer.isPlaying) {
@@ -102,8 +123,6 @@ class MainActivity : ComponentActivity() {
                     },
                     next = {
                         musicPlayer.exoPlayer.seekToNextMediaItem()
-                        selectedTrack = tracks.getOrNull(musicPlayer.exoPlayer.currentMediaItemIndex)
-                        scope.launch { currentPalette = themeEngine.paletteFor(selectedTrack?.artworkUri) }
                         isPlaying = true
                     },
                     previous = {
