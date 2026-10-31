@@ -13,7 +13,10 @@ A native, offline-first Android music player built with Kotlin and Jetpack Compo
 - Album-art palette extraction with bounded thumbnail decoding
 - Bounded LRU palette cache with synchronized extraction
 - Animated adaptive colour transitions and semantic Material 3 colours
-- Translucent layered glass surfaces
+- Haze-backed frosted-glass surfaces with album-tinted blur, translucent fills, noise, and reflective edge highlights
+- Blurred album-art ambience behind the Now Playing screen
+- Animated library/player screen transitions
+- Full-screen Now Playing UI with seek progress, duration, and playback controls
 - Animated mini spectrum placeholder
 
 ## Build
@@ -30,8 +33,8 @@ First build requires internet for Gradle dependencies. Music playback itself is 
 - `LunaPlaybackService` owns the ExoPlayer and MediaSession independently of the Activity lifecycle. Media3 supplies the system media notification and session controls while playback is active.
 - `MusicRepository` queries MediaStore on `Dispatchers.IO`; the Activity collects the result asynchronously.
 - `LunaThemeEngine` extracts and caches album-art palettes. A request token prevents an older artwork decode from replacing the palette for a newer track.
-- The current glass component is translucent layered styling. The Haze dependency is present, but true backdrop blur/refraction is not implemented yet.
-- The mini spectrum is animated UI, not yet connected to actual audio frequencies.
+- `LunaGlassSurface` uses Haze 1.x source-backed blur with an album-colour tint and a lightweight translucent highlight layer. It is a frosted-glass blur treatment; physically based refraction is not implemented.
+- The mini spectrum is currently an animated playback indicator, not yet connected to actual audio frequencies.
 - MediaStore album-art URIs may be missing on some devices; LUNA falls back to a default palette.
 
 ## Roadmap
@@ -39,11 +42,13 @@ First build requires internet for Gradle dependencies. Music playback itself is 
 - [x] System media-session metadata and playback controls
 - [x] Asynchronous local library scan
 - [x] Bounded album palette extraction/cache
-- [ ] Full player screen and artwork transitions
-- [ ] Seek bar, progress and duration
+- [x] Full player screen and artwork ambience
+- [x] Seek bar, progress and duration
+- [x] Animated library/player transitions
 - [ ] Search, album, artist and folder views
 - [ ] Playlists, queue, shuffle and repeat
-- [ ] True backdrop blur/refraction glass treatment
+- [x] Haze-backed backdrop blur and adaptive glass treatment
+- [ ] Refraction-driven glass highlights
 - [ ] Audio-reactive visualizer
 - [ ] Sleep timer and equalizer
 - [ ] Instrumentation tests, device validation and release polish
