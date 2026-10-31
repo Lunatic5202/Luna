@@ -97,7 +97,8 @@ fun NowPlayingScreen(
             AlbumArtwork(
                 artworkUri = track.artworkUri?.toString(),
                 modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(CircleShape),
-                palette = palette
+                palette = palette,
+                shape = CircleShape
             )
 
             Column(Modifier.fillMaxWidth()) {
