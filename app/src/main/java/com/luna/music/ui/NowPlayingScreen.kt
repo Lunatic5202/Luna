@@ -129,6 +129,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import com.luna.music.data.Track
 import androidx.media3.common.Player
 import com.luna.music.theme.AlbumPalette
@@ -411,65 +412,81 @@ fun NowPlayingScreen(
                                 val chooseDistance = 44.dp.toPx()
                                 awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false)
-                                    val held = awaitHoldOrNull(down)
-                                    if (held != null) {
-                                        // Hold: peek the neighbouring tracks. Slide toward one and release to play it.
-                                        showArtworkPeek = true
-                                        peekSelection = 0
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        val originX = held.position.x
-                                        val finished = drag(held.id) { change ->
-                                            change.consume()
-                                            val dx = change.position.x - originX
-                                            val selection = when {
-                                                dx > chooseDistance && hasNext -> 1
-                                                dx < -chooseDistance && hasPrevious -> -1
-                                                else -> 0
-                                            }
-                                            if (selection != peekSelection) {
-                                                peekSelection = selection
-                                                if (selection != 0) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            }
-                                            val limit = chooseDistance * 1.6f
-                                            scope.launch { dragX.snapTo(dx.coerceIn(-limit, limit) * 0.3f) }
-                                        }
-                                        val chosen = if (finished) peekSelection else 0
-                                        showArtworkPeek = false
-                                        peekSelection = 0
-                                        scope.launch { dragX.animateTo(0f, spring(dampingRatio = 0.6f, stiffness = 300f)) }
-                                        if (chosen != 0) {
+                                    when (val start = awaitArtworkGestureStart(down)) {
+                                        is ArtworkGestureStart.Hold -> {
+                                            // Hold: peek the neighbouring tracks. Slide toward one and release to play it.
+                                            showArtworkPeek = true
+                                            peekSelection = 0
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            if (chosen > 0) onNext() else onPrevious()
+                                            val originX = start.change.position.x
+                                            val finished = drag(start.change.id) { change ->
+                                                change.consume()
+                                                val dx = change.position.x - originX
+                                                val selection = when {
+                                                    dx > chooseDistance && hasNext -> 1
+                                                    dx < -chooseDistance && hasPrevious -> -1
+                                                    else -> 0
+                                                }
+                                                if (selection != peekSelection) {
+                                                    peekSelection = selection
+                                                    if (selection != 0) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                }
+                                                val limit = chooseDistance * 1.6f
+                                                scope.launch { dragX.snapTo(dx.coerceIn(-limit, limit) * 0.3f) }
+                                            }
+                                            val chosen = if (finished) peekSelection else 0
+                                            showArtworkPeek = false
+                                            peekSelection = 0
+                                            scope.launch { dragX.animateTo(0f, spring(dampingRatio = 0.6f, stiffness = 300f)) }
+                                            if (chosen != 0) {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                if (chosen > 0) onNext() else onPrevious()
+                                            }
                                         }
-                                    } else {
-                                        // Quick drag: swipe sideways to change track, up or down for volume.
-                                        var totalX = 0f
-                                        var totalY = 0f
-                                        var axis = 0
-                                        val finished = drag(down.id) { change ->
-                                            change.consume()
-                                            val amount = change.positionChange()
-                                            totalX += amount.x
-                                            totalY += amount.y
-                                            if (axis == 0 && (abs(totalX) > 10.dp.toPx() || abs(totalY) > 10.dp.toPx())) {
-                                                axis = if (abs(totalX) > abs(totalY)) 1 else 2
-                                            }
-                                            if (axis == 1) {
-                                                scope.launch { dragX.snapTo(totalX * 0.5f) }
-                                            }
+                                        is ArtworkGestureStart.Swipe -> {
+                                            // Start tracking as soon as touch slop is crossed. Waiting for
+                                            // the long-press timeout here used to swallow quick swipes.
+                                            start.change.consume()
+                                            var totalX = start.delta.x
+                                            var totalY = start.delta.y
+                                            var axis = if (abs(totalX) > abs(totalY)) 1 else 2
+                                            if (axis == 1) scope.launch { dragX.snapTo(totalX * 0.5f) }
                                             if (axis == 2 && controller != null) {
-                                                val nextVolume = (controller.volume - amount.y / size.height * 1.35f).coerceIn(0f, 1f)
-                                                controller.volume = nextVolume
-                                                volumePercent = nextVolume * 100f
+                                                controller.volume = (controller.volume - totalY / size.height * 1.35f).coerceIn(0f, 1f)
+                                                volumePercent = controller.volume * 100f
                                                 volumeVisible = true
                                             }
+
+                                            var released = start.released
+                                            if (!released) {
+                                                while (true) {
+                                                    val event = awaitPointerEvent()
+                                                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                                    if (!change.pressed) {
+                                                        change.consume()
+                                                        released = true
+                                                        break
+                                                    }
+                                                    if (change.isConsumed) break
+                                                    val amount = change.positionChange()
+                                                    totalX += amount.x
+                                                    totalY += amount.y
+                                                    if (axis == 1) {
+                                                        scope.launch { dragX.snapTo(totalX * 0.5f) }
+                                                    } else if (controller != null) {
+                                                        controller.volume = (controller.volume - amount.y / size.height * 1.35f).coerceIn(0f, 1f)
+                                                        volumePercent = controller.volume * 100f
+                                                        volumeVisible = true
+                                                    }
+                                                    change.consume()
+                                                }
+                                            }
+                                            if (released && axis == 1 && abs(totalX) > 72.dp.toPx()) {
+                                                if (totalX < 0f) onNext() else onPrevious()
+                                            }
+                                            scope.launch { dragX.animateTo(0f, spring(dampingRatio = 0.5f, stiffness = 260f)) }
                                         }
-                                        if (finished && axis == 1 && abs(totalX) > 72.dp.toPx()) {
-                                            if (totalX < 0f) onNext() else onPrevious()
-                                        }
-                                        scope.launch {
-                                            dragX.animateTo(0f, spring(dampingRatio = 0.5f, stiffness = 260f))
-                                        }
+                                        ArtworkGestureStart.Cancelled -> Unit
                                     }
                                 }
                             }
@@ -993,27 +1010,32 @@ private fun ArtworkPeekHint(
     }
 }
 
-/**
- * Waits for [down] to be held still for the system long-press timeout. Returns the latest pointer
- * state when the hold completes, or null if the finger lifted, moved beyond touch slop or the
- * gesture was taken over first.
- */
-private suspend fun AwaitPointerEventScope.awaitHoldOrNull(down: PointerInputChange): PointerInputChange? {
+private sealed interface ArtworkGestureStart {
+    data class Hold(val change: PointerInputChange) : ArtworkGestureStart
+    data class Swipe(val change: PointerInputChange, val delta: Offset, val released: Boolean) : ArtworkGestureStart
+    data object Cancelled : ArtworkGestureStart
+}
+
+/** Detects a short swipe before the long-press timer, without losing the movement that crossed touch slop. */
+private suspend fun AwaitPointerEventScope.awaitArtworkGestureStart(down: PointerInputChange): ArtworkGestureStart {
     var latest = down
-    val interrupted = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+    val start = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
         while (true) {
             val event = awaitPointerEvent()
-            val change = event.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull true
+            val change = event.changes.firstOrNull { it.id == down.id }
+                ?: return@withTimeoutOrNull ArtworkGestureStart.Cancelled
             latest = change
-            if (change.isConsumed || !change.pressed) return@withTimeoutOrNull true
-            if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
-                return@withTimeoutOrNull true
+            if (change.isConsumed) return@withTimeoutOrNull ArtworkGestureStart.Cancelled
+            val delta = change.position - down.position
+            if (delta.getDistance() > viewConfiguration.touchSlop) {
+                return@withTimeoutOrNull ArtworkGestureStart.Swipe(change, delta, released = !change.pressed)
             }
+            if (!change.pressed) return@withTimeoutOrNull ArtworkGestureStart.Cancelled
         }
         @Suppress("UNREACHABLE_CODE")
-        false
+        ArtworkGestureStart.Cancelled
     }
-    return if (interrupted == null) latest else null
+    return start ?: if (latest.pressed) ArtworkGestureStart.Hold(latest) else ArtworkGestureStart.Cancelled
 }
 
 private val DOME_HEIGHT = 340.dp
