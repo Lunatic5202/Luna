@@ -7,9 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 import androidx.compose.foundation.layout.Arrangement
@@ -93,6 +90,7 @@ fun NowPlayingScreen(
     var showQueue by remember { mutableStateOf(false) }
     val queueSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val progress by animateFloatAsState(position, animationSpec = tween(250, easing = FastOutSlowInEasing), label = "track-progress")
+    val volumeAlpha by animateFloatAsState(if (volumeVisible) 1f else 0f, animationSpec = tween(180), label = "volume-indicator")
     var volumeVisible by remember { mutableStateOf(false) }
     var volumePercent by remember { mutableFloatStateOf(0f) }
 
@@ -193,13 +191,9 @@ fun NowPlayingScreen(
                     palette = palette,
                     shape = CircleShape
                 )
-                AnimatedVisibility(
-                    visible = volumeVisible,
-                    enter = fadeIn(tween(120)),
-                    exit = fadeOut(tween(220))
-                ) {
+                if (volumeAlpha > 0.01f) {
                     Box(
-                        Modifier.clip(CircleShape)
+                        Modifier.alpha(volumeAlpha).clip(CircleShape)
                             .background(Color.Black.copy(alpha = 0.48f))
                             .padding(horizontal = 20.dp, vertical = 12.dp)
                     ) {
