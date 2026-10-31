@@ -514,7 +514,7 @@ private fun LunaPermissionIntro(
             horizontalAlignment = Alignment.Start
         ) {
             LunaBrandLogo(
-                modifier = Modifier.size(148.dp).staggeredEntrance(0, 110),
+                modifier = Modifier.size(148.dp).align(Alignment.CenterHorizontally).staggeredEntrance(0, 110),
                 contentDescription = "Luna music player"
             )
             Spacer(Modifier.height(28.dp))
@@ -623,13 +623,12 @@ private fun LunaHome(
                 .layerBackdrop(liquidBackdrop)
         )
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 22.dp)) {
-            Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.fillMaxWidth().padding(top = 10.dp).height(82.dp)) {
                 LunaBrandLogo(
-                    modifier = Modifier.size(82.dp),
+                    modifier = Modifier.size(82.dp).align(Alignment.Center),
                     contentDescription = "Luna music player"
                 )
-                Spacer(Modifier.weight(1f))
-                IconButton(onClick = openDrawer) {
+                IconButton(onClick = openDrawer, modifier = Modifier.align(Alignment.CenterEnd)) {
                     Icon(Icons.Default.Menu, contentDescription = "Open navigation", tint = palette.onBackground)
                 }
             }
@@ -866,7 +865,7 @@ private fun LunaNavigationDrawer(
                 .padding(horizontal = 18.dp, vertical = 26.dp)
         ) {
             LunaBrandLogo(
-                modifier = Modifier.size(112.dp),
+                modifier = Modifier.size(112.dp).align(Alignment.CenterHorizontally),
                 contentDescription = "Luna music player"
             )
             Spacer(Modifier.height(6.dp))

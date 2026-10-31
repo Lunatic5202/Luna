@@ -227,7 +227,7 @@ fun AboutScreen(palette: AlbumPalette, openDrawer: () -> Unit) {
         LunaGlassSurface(palette, Modifier.fillMaxWidth()) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 LunaBrandLogo(
-                    modifier = Modifier.size(148.dp),
+                    modifier = Modifier.size(148.dp).align(Alignment.CenterHorizontally),
                     contentDescription = "Luna music player"
                 )
                 Text("Built by Lunatic", color = palette.onBackground, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
