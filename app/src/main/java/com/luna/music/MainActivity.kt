@@ -81,7 +81,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        musicPlayer = MusicPlayer(this)
         repository = MusicRepository(this)
         themeEngine = LunaThemeEngine(this)
 
@@ -90,17 +89,36 @@ class MainActivity : ComponentActivity() {
         permissionGranted = ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
         if (permissionGranted) loadLibrary()
 
-        val sessionToken = SessionToken(this, android.content.ComponentName(this, LunaPlaybackService::class.java))\n        controllerFuture = MediaController.Builder(this, sessionToken).buildAsync().also { future ->\n            future.addListener({\n                if (isFinishing || isDestroyed) return@addListener\n                mediaController = future.get()\n                mediaController?.addListener(object : Player.Listener {
-            override fun onIsPlayingChanged(isPlayingNow: Boolean) {
-                isPlaying = isPlayingNow
-            }
+        val sessionToken = SessionToken(
+            this,
+            android.content.ComponentName(this, LunaPlaybackService::class.java)
+        )
+        controllerFuture = MediaController.Builder(this, sessionToken).buildAsync().also { future ->
+            future.addListener({
+                if (isFinishing || isDestroyed) return@addListener
+                mediaController = future.get()
+                mediaController?.addListener(object : Player.Listener {
+                    override fun onIsPlayingChanged(isPlayingNow: Boolean) {
+                        isPlaying = isPlayingNow
+                    }
 
-            override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
-                val track = tracks.firstOrNull { it.id.toString() == mediaItem?.mediaId } ?: return
-                selectedTrack = track
-                updatePaletteFor(track)
-            }
-        })
+                    override fun onMediaItemTransition(
+                        mediaItem: MediaItem?,
+                        reason: Int
+                    ) {
+                        val track = tracks.firstOrNull { it.id.toString() == mediaItem?.mediaId } ?: return
+                        selectedTrack = track
+                        updatePaletteFor(track)
+                    }
+                })
+                mediaController?.currentMediaItem?.let { item ->
+                    tracks.firstOrNull { it.id.toString() == item.mediaId }?.let { track ->
+                        selectedTrack = track
+                        updatePaletteFor(track)
+                    }
+                }
+            }, ContextCompat.getMainExecutor(this))
+        }
 
         setContent {
             val animatedPalette = rememberLunaPalette(currentPalette)
@@ -114,14 +132,31 @@ class MainActivity : ComponentActivity() {
                     requestPermission = { permissionLauncher.launch(permission) },
                     play = { track ->
                         val index = tracks.indexOf(track).coerceAtLeast(0)
-                        val items = tracks.map { item ->\n                            MediaItem.Builder()\n                                .setUri(item.uri)\n                                .setMediaId(item.id.toString())\n                                .setMediaMetadata(MediaMetadata.Builder()\n                                    .setTitle(item.title)\n                                    .setArtist(item.artist)\n                                    .setAlbumTitle(item.album)\n                                    .setArtworkUri(item.artworkUri)\n                                    .build())\n                                .build()\n                        }\n                        mediaController?.setMediaItems(items, index, 0L)\n                        mediaController?.prepare()\n                        mediaController?.play()
+                        val mediaItems = tracks.map { item ->
+                            MediaItem.Builder()
+                                .setUri(item.uri)
+                                .setMediaId(item.id.toString())
+                                .setMediaMetadata(
+                                    MediaMetadata.Builder()
+                                        .setTitle(item.title)
+                                        .setArtist(item.artist)
+                                        .setAlbumTitle(item.album)
+                                        .apply { item.artworkUri?.let(::setArtworkUri) }
+                                        .build()
+                                )
+                                .build()
+                        }
+                        mediaController?.let { controller ->
+                            controller.setMediaItems(mediaItems, index, 0L)
+                            controller.prepare()
+                            controller.play()
+                        }
                         selectedTrack = track
-                        isPlaying = true
                         updatePaletteFor(track)
                     },
                     toggle = {
-                        if (musicPlayer.exoPlayer.isPlaying) {
-                            musicPlayer.exoPlayer.pause()
+                        if (mediaController?.isPlaying == true) {
+                            mediaController?.pause()
                             isPlaying = false
                         } else {
                             mediaController?.play()
@@ -142,7 +177,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        musicPlayer.release()
+        controllerFuture?.let(MediaController::releaseFuture)
+        mediaController = null
         super.onDestroy()
     }
 }
