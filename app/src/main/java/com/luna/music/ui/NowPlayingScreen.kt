@@ -249,7 +249,7 @@ fun NowPlayingScreen(
                 )
                 LunaGlassSurface(
                     palette = palette,
-                    modifier = Modifier.fillMaxWidth(1.18f).height(292.dp),
+                    modifier = Modifier.fillMaxWidth().height(292.dp).graphicsLayer { scaleX = 1.18f },
                     shape = RoundedCornerShape(percent = 50)
                 ) {
                 Column(Modifier.fillMaxWidth().padding(18.dp)) {
