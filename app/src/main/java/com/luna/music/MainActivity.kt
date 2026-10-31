@@ -8,12 +8,19 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -323,9 +330,16 @@ private fun LunaHome(
                 val libraryListState = rememberLazyListState()
                 LazyColumn(Modifier.weight(1f), state = libraryListState, verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     items(tracks, key = { it.id }) { track ->
+                        val isSelected = selectedTrack?.id == track.id
+                        val rowColor by animateColorAsState(
+                            targetValue = if (isSelected) palette.primary.copy(alpha = .19f) else Color.White.copy(alpha = .045f),
+                            animationSpec = tween(320),
+                            label = "library-row-selection"
+                        )
                         Row(
-                            Modifier.fillMaxWidth().animateItem().clip(RoundedCornerShape(17.dp))
-                                .background(if (selectedTrack?.id == track.id) palette.primary.copy(alpha = .17f) else Color.White.copy(alpha = .045f))
+                            Modifier.fillMaxWidth().animateItem().animateContentSize(tween(260))
+                                .clip(RoundedCornerShape(17.dp))
+                                .background(rowColor)
                                 .clickable { play(track) }.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -335,25 +349,61 @@ private fun LunaHome(
                                 Text(track.title, color = palette.onBackground, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold)
                                 Text(track.artist, color = Muted, fontSize = 12.sp, maxLines = 1)
                             }
-                            if (selectedTrack?.id == track.id) Text("PLAYING", color = palette.secondary, fontSize = 9.sp)
+                            AnimatedVisibility(
+                                visible = isSelected,
+                                enter = fadeIn(tween(180)) + scaleIn(initialScale = .88f, animationSpec = tween(180)),
+                                exit = fadeOut(tween(140)) + scaleOut(targetScale = .88f, animationSpec = tween(140))
+                            ) {
+                                Text("PLAYING", color = palette.secondary, fontSize = 9.sp)
+                            }
                         }
                     }
                 }
             }
 
-            selectedTrack?.let { track ->
-                Spacer(Modifier.height(12.dp))
-                LunaGlassSurface(palette, Modifier.fillMaxWidth()) {
-                    Column(Modifier.clickable(onClick = openNowPlaying).padding(14.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            AlbumArtwork(track.artworkUri?.toString(), Modifier.size(48.dp), palette)
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(track.title, color = palette.onBackground, fontWeight = FontWeight.Bold, maxLines = 1)
-                                Text(track.artist, color = Muted, fontSize = 12.sp)
-                            }
-                            IconButton(onClick = toggle) {
-                                Icon(if (playing) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = palette.onBackground)
+            AnimatedVisibility(
+                visible = selectedTrack != null,
+                enter = fadeIn(tween(260)) + slideInVertically(tween(260)) { it / 2 } + expandVertically(tween(260)),
+                exit = fadeOut(tween(180)) + slideOutVertically(tween(180)) { it / 3 } + shrinkVertically(tween(180))
+            ) {
+                selectedTrack?.let { track ->
+                    Spacer(Modifier.height(12.dp))
+                    LunaGlassSurface(palette, Modifier.fillMaxWidth()) {
+                        Column(Modifier.clickable(onClick = openNowPlaying).animateContentSize(tween(240)).padding(14.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                AlbumArtwork(track.artworkUri?.toString(), Modifier.size(48.dp), palette)
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    AnimatedContent(
+                                        targetState = track.title,
+                                        transitionSpec = {
+                                            (fadeIn(tween(220)) + slideInVertically(tween(220)) { it / 3 }) togetherWith
+                                                (fadeOut(tween(150)) + slideOutVertically(tween(150)) { -it / 4 })
+                                        },
+                                        label = "mini-player-title"
+                                    ) { title ->
+                                        Text(title, color = palette.onBackground, fontWeight = FontWeight.Bold, maxLines = 1)
+                                    }
+                                    AnimatedContent(
+                                        targetState = track.artist,
+                                        transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(140)) },
+                                        label = "mini-player-artist"
+                                    ) { artist ->
+                                        Text(artist, color = Muted, fontSize = 12.sp, maxLines = 1)
+                                    }
+                                }
+                                IconButton(onClick = toggle) {
+                                    AnimatedContent(
+                                        targetState = playing,
+                                        transitionSpec = {
+                                            (fadeIn(tween(150)) + scaleIn(initialScale = .72f, animationSpec = tween(180))) togetherWith
+                                                (fadeOut(tween(100)) + scaleOut(targetScale = .72f, animationSpec = tween(120)))
+                                        },
+                                        label = "mini-player-play-pause"
+                                    ) { isPlaying ->
+                                        Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = palette.onBackground)
+                                    }
+                                }
                             }
                         }
                     }
