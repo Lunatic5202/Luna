@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -41,11 +42,18 @@ import androidx.media3.session.MediaController
 import com.luna.music.theme.AlbumPalette
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.math.PI
+import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 
 private const val BAR_COUNT = 64
+
+/** Dome circle radius as a fraction of screen width (shared with the glass panel shape). */
+internal const val DOME_RADIUS_FRACTION = 0.775f
+
+/** Headroom above the dome so the spectrum bars have space to grow. */
+internal val DOME_RING_INSET = 32.dp
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -147,32 +155,34 @@ fun PlaybackVisualizer(
 
     Box(modifier, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
-            val rx = size.width * 0.485f
-            val ry = size.height * 0.46f
-            val center = Offset(size.width / 2f, size.height / 2f)
-            drawOval(
+            val radius = size.width * DOME_RADIUS_FRACTION
+            val top = DOME_RING_INSET.toPx()
+            val center = Offset(size.width / 2f, top + radius)
+            // Half-angle of the arc that is actually visible on screen.
+            val half = asin((size.width / 2f / radius).coerceAtMost(1f))
+            val halfDeg = Math.toDegrees(half.toDouble()).toFloat()
+            drawArc(
                 color = palette.primary.copy(alpha = 0.20f),
-                topLeft = Offset(center.x - rx, center.y - ry),
-                size = androidx.compose.ui.geometry.Size(rx * 2f, ry * 2f),
+                startAngle = 270f - halfDeg,
+                sweepAngle = 2f * halfDeg,
+                useCenter = false,
+                topLeft = Offset(center.x - radius, top),
+                size = Size(radius * 2f, radius * 2f),
                 style = Stroke(width = 1.dp.toPx())
             )
 
+            val last = (smoothedLevels.size - 1).coerceAtLeast(1)
             smoothedLevels.forEachIndexed { index, level ->
-                val angle = -PI / 2.0 + (2.0 * PI * index / smoothedLevels.size)
+                val t = index.toFloat() / last
+                val angle = -PI / 2.0 - half + 2.0 * half * t
                 val cosAngle = cos(angle).toFloat()
                 val sinAngle = sin(angle).toFloat()
-                val normalX = cosAngle / rx
-                val normalY = sinAngle / ry
-                val normalLength = sqrt(normalX * normalX + normalY * normalY).coerceAtLeast(0.0001f)
-                val nx = normalX / normalLength
-                val ny = normalY / normalLength
-                val start = Offset(center.x + cosAngle * rx, center.y + sinAngle * ry)
+                val start = Offset(center.x + cosAngle * radius, center.y + sinAngle * radius)
                 val strength = if (enabled && playing) level else 0.025f
-                val length = minOf(size.width, size.height) * (0.008f + strength * 0.055f)
-                val end = Offset(start.x + nx * length, start.y + ny * length)
-                val blend = index.toFloat() / smoothedLevels.size
+                val length = size.width * (0.008f + strength * 0.075f)
+                val end = Offset(start.x + cosAngle * length, start.y + sinAngle * length)
                 drawLine(
-                    color = androidx.compose.ui.graphics.lerp(palette.primary, palette.secondary, blend)
+                    color = androidx.compose.ui.graphics.lerp(palette.primary, palette.secondary, t)
                         .copy(alpha = if (enabled && playing) 0.88f else 0.25f),
                     start = start,
                     end = end,
