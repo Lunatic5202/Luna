@@ -1,8 +1,10 @@
 package com.luna.music.ui
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.LruCache
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -37,6 +39,66 @@ import com.luna.music.theme.AlbumPalette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/**
+ * Shared in-memory artwork cache. Library rows, the mini-player and the
+ * fullscreen player all request the same URI, so a cover decoded while
+ * scrolling is immediately reusable by the shared-element transition.
+ */
+private object AlbumArtworkCache {
+    private const val MAX_DECODED_DIMENSION = 768
+
+    private val memory = LruCache<String, Bitmap>(
+        (Runtime.getRuntime().maxMemory() / 1024L / 8L).coerceAtMost(64L * 1024L).toInt()
+    ) {
+        override fun sizeOf(key: String, value: Bitmap): Int =
+            (value.byteCount / 1024).coerceAtLeast(1)
+    }
+
+    @Synchronized
+    fun get(key: String): Bitmap? = memory.get(key)?.takeUnless { it.isRecycled }
+
+    @Synchronized
+    fun put(key: String, bitmap: Bitmap) {
+        if (!bitmap.isRecycled) memory.put(key, bitmap)
+    }
+
+    suspend fun load(context: Context, artworkUri: String): Bitmap? {
+        get(artworkUri)?.let { return it }
+
+        val decoded = withContext(Dispatchers.IO) {
+            runCatching {
+                val uri = Uri.parse(artworkUri)
+                val resolver = context.contentResolver
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+
+                if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                    return@runCatching null
+                }
+
+                var sampleSize = 1
+                while (
+                    bounds.outWidth / (sampleSize * 2) >= MAX_DECODED_DIMENSION &&
+                    bounds.outHeight / (sampleSize * 2) >= MAX_DECODED_DIMENSION
+                ) {
+                    sampleSize *= 2
+                }
+
+                val options = BitmapFactory.Options().apply {
+                    inSampleSize = sampleSize
+                    inPreferredConfig = Bitmap.Config.ARGB_8888
+                }
+                resolver.openInputStream(uri)?.use {
+                    BitmapFactory.decodeStream(it, null, options)
+                }
+            }.getOrNull()
+        }
+
+        if (decoded != null) put(artworkUri, decoded)
+        return decoded
+    }
+}
+
 @Composable
 fun AlbumArtwork(
     artworkUri: String?,
@@ -47,20 +109,13 @@ fun AlbumArtwork(
     val context = LocalContext.current
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
 
-    // Keep the previous artwork visible while the next image is decoded.
-    // This avoids a placeholder flash on every track transition.
+    // Reuse decoded covers across every surface. In particular, artwork
+    // already shown in a library row/mini-player is ready for fullscreen.
     LaunchedEffect(artworkUri) {
         if (artworkUri.isNullOrBlank()) {
             bitmap = null
         } else {
-            val decoded = withContext(Dispatchers.IO) {
-                runCatching {
-                    context.contentResolver.openInputStream(Uri.parse(artworkUri))?.use { stream ->
-                        BitmapFactory.decodeStream(stream)
-                    }
-                }.getOrNull()
-            }
-            bitmap = decoded
+            bitmap = AlbumArtworkCache.load(context.applicationContext, artworkUri)
         }
     }
 
@@ -72,12 +127,12 @@ fun AlbumArtwork(
         AnimatedContent(
             targetState = bitmap,
             transitionSpec = {
-                (fadeIn(tween(420)) + scaleIn(initialScale = .985f, animationSpec = tween(420))) togetherWith
-                    fadeOut(tween(260))
+                (fadeIn(tween(180)) + scaleIn(initialScale = .99f, animationSpec = tween(180))) togetherWith
+                    fadeOut(tween(120))
             },
             label = "album-artwork-crossfade"
         ) { image ->
-            if (image != null) {
+            if (image != null && !image.isRecycled) {
                 Image(
                     image.asImageBitmap(),
                     contentDescription = "Album artwork",
