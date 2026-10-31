@@ -65,10 +65,11 @@ import dev.chrisbanes.haze.hazeSource
 import androidx.media3.session.MediaController
 import com.luna.music.data.Track
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import com.luna.music.theme.AlbumPalette
 import kotlinx.coroutines.delay
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, UnstableApi::class)
 @Composable
 fun NowPlayingScreen(
     track: Track,
@@ -150,7 +151,9 @@ fun NowPlayingScreen(
                 Column(Modifier.fillMaxWidth().padding(18.dp)) {
                 Text(track.title, color = palette.onBackground, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(track.artist, color = palette.secondary, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.height(22.dp))
+                Spacer(Modifier.height(12.dp))
+                PlaybackVisualizer(controller = controller, playing = playing, palette = palette)
+                Spacer(Modifier.height(12.dp))
                 Slider(
                     value = if (duration > 0f) progress.coerceIn(0f, duration) else 0f,
                     onValueChange = {
