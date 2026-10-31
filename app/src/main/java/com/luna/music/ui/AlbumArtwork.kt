@@ -16,7 +16,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,25 +45,35 @@ fun AlbumArtwork(
     shape: Shape = RoundedCornerShape(18.dp)
 ) {
     val context = LocalContext.current
-    val bitmap = produceState<Bitmap?>(null, artworkUri) {
-        value = if (artworkUri.isNullOrBlank()) null else withContext(Dispatchers.IO) {
-            runCatching {
-                context.contentResolver.openInputStream(Uri.parse(artworkUri))?.use { stream ->
-                    BitmapFactory.decodeStream(stream)
-                }
-            }.getOrNull()
+    var bitmap by remember { mutableStateOf<Bitmap?>(null) }
+
+    // Keep the previous artwork visible while the next image is decoded.
+    // This avoids a placeholder flash on every track transition.
+    LaunchedEffect(artworkUri) {
+        if (artworkUri.isNullOrBlank()) {
+            bitmap = null
+        } else {
+            val decoded = withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.openInputStream(Uri.parse(artworkUri))?.use { stream ->
+                        BitmapFactory.decodeStream(stream)
+                    }
+                }.getOrNull()
+            }
+            bitmap = decoded
         }
     }
+
     Box(
         modifier.clip(shape)
             .background(Brush.linearGradient(listOf(palette.primary, palette.secondary))),
         contentAlignment = Alignment.Center
     ) {
         AnimatedContent(
-            targetState = bitmap.value,
+            targetState = bitmap,
             transitionSpec = {
-                (fadeIn(tween(340)) + scaleIn(initialScale = .975f, animationSpec = tween(340))) togetherWith
-                    fadeOut(tween(180))
+                (fadeIn(tween(420)) + scaleIn(initialScale = .985f, animationSpec = tween(420))) togetherWith
+                    fadeOut(tween(260))
             },
             label = "album-artwork-crossfade"
         ) { image ->
