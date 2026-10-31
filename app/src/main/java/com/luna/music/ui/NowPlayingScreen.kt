@@ -7,6 +7,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -24,8 +27,15 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
+import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue as runtimeSetValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -52,12 +63,14 @@ import com.luna.music.ui.LocalLunaHazeState
 import dev.chrisbanes.haze.hazeSource
 import androidx.media3.session.MediaController
 import com.luna.music.data.Track
+import androidx.media3.common.Player
 import com.luna.music.theme.AlbumPalette
 import kotlinx.coroutines.delay
 
 @Composable
 fun NowPlayingScreen(
     track: Track,
+    tracks: List<Track>,
     palette: AlbumPalette,
     playing: Boolean,
     controller: MediaController?,
@@ -69,6 +82,8 @@ fun NowPlayingScreen(
     var position by remember(track.id) { mutableFloatStateOf(0f) }
     var duration by remember(track.id) { mutableFloatStateOf(0f) }
     var dragging by remember { mutableStateOf(false) }
+    var showQueue by remember { mutableStateOf(false) }
+    val queueSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val progress by animateFloatAsState(position, animationSpec = tween(250, easing = FastOutSlowInEasing), label = "track-progress")
 
     LaunchedEffect(controller, playing, track.id, dragging) {
@@ -158,7 +173,10 @@ fun NowPlayingScreen(
                     Text(formatTime(duration.toLong()), color = palette.onBackground.copy(alpha = .6f), fontSize = 11.sp)
                 }
                 Spacer(Modifier.height(18.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { controller?.shuffleModeEnabled = !(controller?.shuffleModeEnabled ?: false) }) {
+                        Icon(Icons.Default.Shuffle, contentDescription = "Toggle shuffle", tint = if (controller?.shuffleModeEnabled == true) palette.primary else palette.onBackground.copy(alpha = 0.55f))
+                    }
                     IconButton(onClick = onPrevious) {
                         Icon(Icons.Default.SkipPrevious, contentDescription = "Previous track", tint = palette.onBackground, modifier = Modifier.padding(4.dp))
                     }
@@ -173,10 +191,64 @@ fun NowPlayingScreen(
                     IconButton(onClick = onNext) {
                         Icon(Icons.Default.SkipNext, contentDescription = "Next track", tint = palette.onBackground, modifier = Modifier.padding(4.dp))
                     }
+                    IconButton(onClick = {
+                        controller?.repeatMode = when (controller?.repeatMode) {
+                            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+                            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+                            else -> Player.REPEAT_MODE_OFF
+                        }
+                    }) {
+                        val repeat = controller?.repeatMode ?: Player.REPEAT_MODE_OFF
+                        Icon(if (repeat == Player.REPEAT_MODE_ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
+                            contentDescription = "Repeat mode",
+                            tint = if (repeat == Player.REPEAT_MODE_OFF) palette.onBackground.copy(alpha = 0.55f) else palette.primary)
+                    }
+                }
+                androidx.compose.material3.TextButton(onClick = { showQueue = true }) {
+                    Icon(Icons.Default.QueueMusic, contentDescription = null, tint = palette.secondary)
+                    androidx.compose.foundation.layout.Spacer(Modifier.width(7.dp))
+                    Text("UP NEXT · ${controller?.mediaItemCount ?: 0}", color = palette.secondary, fontSize = 10.sp, letterSpacing = 1.4.sp)
                 }
                 }
             }
             Text("A LITTLE UNIVERSE, JUST FOR THIS SONG", color = palette.onBackground.copy(alpha = .35f), fontSize = 8.sp, letterSpacing = 1.8.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        }
+        if (showQueue) {
+            ModalBottomSheet(
+                onDismissRequest = { showQueue = false },
+                sheetState = queueSheetState,
+                containerColor = palette.background,
+                contentColor = palette.onBackground
+            ) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(bottom = 28.dp)) {
+                    Text("UP NEXT", color = palette.secondary, fontSize = 11.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
+                    Text("${controller?.mediaItemCount ?: 0} tracks in this session", color = palette.onBackground.copy(alpha = 0.6f), fontSize = 12.sp)
+                    Spacer(Modifier.height(14.dp))
+                    LazyColumn(Modifier.fillMaxWidth().heightIn(max = 430.dp)) {
+                        itemsIndexed((0 until (controller?.mediaItemCount ?: 0)).toList()) { index, _ ->
+                            val item = controller?.getMediaItemAt(index)
+                            val isCurrent = index == (controller?.currentMediaItemIndex ?: -1)
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                                    .background(if (isCurrent) palette.primary.copy(alpha = 0.16f) else Color.Transparent)
+                                    .clickable {
+                                        controller?.seekTo(index, 0L)
+                                        controller?.play()
+                                        showQueue = false
+                                    }.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(if (isCurrent) "♫" else "${index + 1}", color = palette.secondary, modifier = Modifier.width(28.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(item?.mediaMetadata?.title?.toString() ?: "Unknown track", color = palette.onBackground, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal)
+                                    Text(item?.mediaMetadata?.artist?.toString() ?: "Unknown artist", color = palette.onBackground.copy(alpha = 0.55f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                                if (isCurrent) Text("PLAYING", color = palette.secondary, fontSize = 9.sp)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
