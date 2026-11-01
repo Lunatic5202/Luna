@@ -116,6 +116,7 @@ import com.luna.music.ui.CombosScreen
 import com.luna.music.ui.AboutScreen
 import com.luna.music.ui.readableContent
 import com.luna.music.ui.LocalLunaHazeState
+import com.luna.music.ui.LunaAurora
 import com.luna.music.ui.LunaBrandLogo
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -238,10 +239,29 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun mediaPermission(): String =
+        if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
+        else Manifest.permission.READ_EXTERNAL_STORAGE
+
+    /**
+     * Everything LUNA asks for on first launch, in one go: the music library (required), the
+     * microphone (the visualizer reads this player's audio session) and notifications (media controls).
+     */
+    private fun startupPermissions(): Array<String> = buildList {
+        add(mediaPermission())
+        add(Manifest.permission.RECORD_AUDIO)
+        if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
+    }.filter {
+        ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+    }.toTypedArray()
+
     private val permissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            permissionGranted = granted
-            if (granted) loadLibrary()
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            // Only the library is required; declining the others just limits the visualizer
+            // and notification controls.
+            permissionGranted = ContextCompat.checkSelfPermission(this, mediaPermission()) ==
+                PackageManager.PERMISSION_GRANTED
+            if (permissionGranted) loadLibrary()
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -334,7 +354,7 @@ class MainActivity : ComponentActivity() {
                 if (!granted) {
                     LunaPermissionIntro(
                         palette = animatedPalette,
-                        requestPermission = { permissionLauncher.launch(permission) }
+                        requestPermission = { permissionLauncher.launch(startupPermissions()) }
                     )
                 } else {
                 SharedTransitionLayout(
@@ -554,9 +574,14 @@ private fun LunaPermissionIntro(
                 Text("OPTIONAL", color = palette.secondary, fontSize = 10.sp,
                     letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(10.dp))
-                Text("Playback visualizer", color = palette.onBackground,
+                Text("Microphone", color = palette.onBackground,
                     fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                Text("Android may show a microphone permission. It is used only to read this player's audio session; LUNA does not record your voice.",
+                Text("Lets the visualizer dance to your music. It only reads this player's audio; LUNA never records your voice.",
+                    color = palette.onBackground.copy(alpha = .58f), fontSize = 13.sp)
+                Spacer(Modifier.height(14.dp))
+                Text("Notifications", color = palette.onBackground,
+                    fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                Text("Playback controls in your notification shade and on the lock screen.",
                     color = palette.onBackground.copy(alpha = .58f), fontSize = 13.sp)
             }
             Spacer(Modifier.height(34.dp))
@@ -640,6 +665,8 @@ private fun LunaHome(
                 .background(Brush.verticalGradient(listOf(palette.glow.copy(alpha = .42f), palette.background, palette.backgroundBottom)))
                 .layerBackdrop(liquidBackdrop)
         )
+        // Drawn above the recorded backdrop, so the glass doesn't re-blur it every frame.
+        LunaAurora(palette, playing)
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 22.dp)) {
             Box(Modifier.fillMaxWidth().padding(top = 10.dp).height(82.dp)) {
                 LunaBrandLogo(
@@ -651,7 +678,30 @@ private fun LunaHome(
                 }
             }
             Spacer(Modifier.height(16.dp))
-            Text("Library", color = palette.onBackground, fontSize = 23.sp, fontWeight = FontWeight.SemiBold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Library", color = palette.onBackground, fontSize = 23.sp,
+                    fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f)
+                )
+                if (selectedTrack != null) {
+                    AnimatedContent(
+                        targetState = palette.vibeLabel(),
+                        transitionSpec = { fadeIn(tween(500)) togetherWith fadeOut(tween(300)) },
+                        label = "home-vibe"
+                    ) { label ->
+                        Text(
+                            label,
+                            color = palette.secondary,
+                            fontSize = 10.sp,
+                            letterSpacing = 1.6.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clip(RoundedCornerShape(50))
+                                .background(palette.primary.copy(alpha = .16f))
+                                .padding(horizontal = 11.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+            }
             Spacer(Modifier.height(12.dp))
 
             if (tracks.isEmpty()) {

@@ -78,7 +78,6 @@ fun PlaybackVisualizer(
         )
     }
     var liveWanted by rememberSaveable { mutableStateOf(true) }
-    var asked by rememberSaveable { mutableStateOf(false) }
     val sessionId by LunaPlaybackService.audioSessionId.collectAsState()
 
     // Written by the capture thread, read every frame by the animation loop.
@@ -96,13 +95,8 @@ fun PlaybackVisualizer(
         liveWanted = granted
     }
 
-    // Ask once, automatically. Without it the bars still dance (synthetic mode).
-    LaunchedEffect(Unit) {
-        if (!permissionGranted && !asked) {
-            asked = true
-            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-        }
-    }
+    // The microphone permission is requested on the start-up screen. If it was declined the
+    // bars still dance in synthetic mode, and the button below can ask again.
 
     // Real audio capture.
     DisposableEffect(liveWanted, permissionGranted, sessionId, playing) {

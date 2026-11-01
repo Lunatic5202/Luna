@@ -7,6 +7,7 @@ import android.graphics.Color as AndroidColor
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.compose.ui.graphics.Color
+import androidx.core.graphics.ColorUtils
 import androidx.palette.graphics.Palette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -42,13 +43,30 @@ class AlbumColorExtractor(private val context: Context) {
                 val vividSecondary = boostVibrancy(light, saturation = 1.10f, brightness = 1.02f)
                 val vividGlow = boostVibrancy(muted, saturation = 1.20f, brightness = 1.06f)
 
+                val hsl = FloatArray(3).also { ColorUtils.colorToHSL(vividPrimary, it) }
+                val accent = if (hsl[1] < 0.12f) vividSecondary else ColorUtils.HSLToColor(
+                    floatArrayOf((hsl[0] + 36f) % 360f, hsl[1].coerceIn(0.5f, 0.9f), 0.62f)
+                )
+                val energy = (
+                    hsl[1] * 0.65f +
+                        (1f - kotlin.math.abs(hsl[2] - 0.55f) * 1.6f).coerceIn(0f, 1f) * 0.35f
+                    ).coerceIn(0f, 1f)
+
                 AlbumPalette(
                     background = Color(darken(dark, 0.48f)),
                     surface = Color(darken(dark, 0.72f)),
                     primary = Color(vividPrimary),
                     secondary = Color(vividSecondary),
                     glow = Color(vividGlow),
-                    onBackground = Color(0xFFF5F6F8)
+                    onBackground = Color(0xFFF5F6F8),
+                    accent = Color(accent),
+                    energy = energy,
+                    vibeName = vibeName(hsl[0], hsl[1]),
+                    vibeLevel = when {
+                        energy >= 0.66f -> "ENERGETIC"
+                        energy >= 0.40f -> "GROOVY"
+                        else -> "CALM"
+                    }
                 )
             } catch (_: Exception) {
                 AlbumPalette.Fallback
@@ -96,6 +114,19 @@ class AlbumColorExtractor(private val context: Context) {
         var sampleSize = 1
         while (maxOf(width, height) / sampleSize > target) sampleSize *= 2
         return sampleSize
+    }
+
+    /** Names the mood by hue band; near-grey artwork is MONO. */
+    private fun vibeName(hue: Float, saturation: Float): String = when {
+        saturation < 0.14f -> "MONO"
+        hue < 15f || hue >= 345f -> "EMBER"
+        hue < 45f -> "SUNSET"
+        hue < 70f -> "SOLAR"
+        hue < 160f -> "VERDANT"
+        hue < 200f -> "LAGOON"
+        hue < 255f -> "OCEAN"
+        hue < 295f -> "TWILIGHT"
+        else -> "NEON"
     }
 
     private fun darken(color: Int, amount: Float): Int =
