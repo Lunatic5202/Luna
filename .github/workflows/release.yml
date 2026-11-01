@@ -1,0 +1,75 @@
+name: Release
+
+# Publishes a signed APK to GitHub Releases whenever a version tag (v0.2.0, v1.0.0, ...) is pushed,
+# or when a release is created from the GitHub website (which creates the tag for you).
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Decode signing key
+        env:
+          LUNA_KEYSTORE_BASE64: ${{ secrets.LUNA_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$LUNA_KEYSTORE_BASE64" ]; then
+            echo "::error::Signing secrets are missing; refusing to publish an unsigned APK."
+            exit 1
+          fi
+          echo "$LUNA_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/luna.jks"
+          echo "LUNA_KEYSTORE_PATH=$RUNNER_TEMP/luna.jks" >> "$GITHUB_ENV"
+          echo "LUNA_KEYSTORE_PASSWORD=${{ secrets.LUNA_KEYSTORE_PASSWORD }}" >> "$GITHUB_ENV"
+          echo "LUNA_KEY_ALIAS=${{ secrets.LUNA_KEY_ALIAS }}" >> "$GITHUB_ENV"
+          echo "LUNA_KEY_PASSWORD=${{ secrets.LUNA_KEY_PASSWORD }}" >> "$GITHUB_ENV"
+
+      - name: Set version from the tag
+        run: |
+          # v0.2.0 -> versionName 0.2.0. versionCode rises every run so updates install over old versions.
+          echo "LUNA_VERSION_NAME=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          echo "LUNA_VERSION_CODE=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK
+        run: ./gradlew :app:assembleRelease --console=plain
+
+      - name: Verify signature and name the file
+        run: |
+          apk=app/build/outputs/apk/release/app-release.apk
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$apksigner" verify --print-certs "$apk"
+          cp "$apk" "LUNA-${GITHUB_REF_NAME}.apk"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<'NOTES'
+          ## Install
+          1. Download the `.apk` below on your Android phone (Android 8.0+).
+          2. Open it. If asked, allow installs from your browser or file manager.
+          3. If Play Protect says "unrecognized app", tap **More details → Install anyway**. LUNA is open source and signed with the developer's own key.
+
+          Updates install straight over the previous version.
+          NOTES
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "LUNA-${GITHUB_REF_NAME}.apk" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "LUNA-${GITHUB_REF_NAME}.apk" \
+              --title "LUNA ${GITHUB_REF_NAME}" --notes-file notes.md --generate-notes
+          fi
