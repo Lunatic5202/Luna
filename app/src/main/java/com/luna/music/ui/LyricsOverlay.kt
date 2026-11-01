@@ -93,9 +93,9 @@ private sealed interface LyricsState {
 private data class TimedLyricLine(val timestampMs: Long, val text: String)
 private data class LyricsPayload(val text: String, val synced: Boolean)
 
-private const val LYRICS_SCRIM_BASE = 0.45f
-private const val LYRICS_SCRIM_TOP = 0.30f
-private const val LYRICS_SCRIM_BOTTOM = 0.50f
+private const val LYRICS_SCRIM_BASE = 0.92f
+private const val LYRICS_SCRIM_TOP = 0.74f
+private const val LYRICS_SCRIM_BOTTOM = 0.90f
 
 @Composable
 fun LyricsOverlay(
