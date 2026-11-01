@@ -38,7 +38,6 @@ import androidx.compose.ui.input.pointer.positionChange
 import kotlin.math.abs
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.media3.common.C
 import androidx.compose.foundation.layout.Arrangement
@@ -697,7 +696,7 @@ fun NowPlayingScreen(
                             )
                             Row(
                                 Modifier.fillMaxWidth()
-                                    .animateItem(placementSpec = if (isDragging) null else spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset.VisibilityThreshold))
+                                    .animateItem(placementSpec = if (isDragging) null else spring(stiffness = Spring.StiffnessMediumLow))
                                     .zIndex(if (isDragging) 1f else 0f)
                                     .graphicsLayer {
                                         translationY = if (isDragging) draggedQueueOffset else 0f
