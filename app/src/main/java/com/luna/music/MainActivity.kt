@@ -10,8 +10,12 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
+import android.provider.Settings
+import android.view.ViewGroup
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.compose.ui.platform.ComposeView
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -117,6 +121,8 @@ import com.luna.music.ui.AboutScreen
 import com.luna.music.ui.readableContent
 import com.luna.music.ui.LocalLunaHazeState
 import com.luna.music.ui.LunaBrandLogo
+import com.luna.music.ui.LunaStartupIntro
+import com.luna.music.ui.StartupIntroState
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 
@@ -245,6 +251,9 @@ class MainActivity : ComponentActivity() {
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Must run before super.onCreate so the black splash theme is swapped for the app theme.
+        val splash = installSplashScreen()
+        splash.setOnExitAnimationListener { it.remove() }
         super.onCreate(savedInstanceState)
         showNowPlaying = intent.getBooleanExtra(EXTRA_OPEN_NOW_PLAYING, false)
         repository = MusicRepository(this)
@@ -482,6 +491,35 @@ class MainActivity : ComponentActivity() {
             }
             }
     }
+
+        showStartupIntro()
+    }
+
+    /**
+     * Plays the animated intro on top of the app on a cold start. It is skipped when the
+     * player is opened from the media notification, when the activity is merely recreated,
+     * and when the user has turned system animations off.
+     */
+    private fun showStartupIntro() {
+        val animationsOn = Settings.Global.getFloat(
+            contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f
+        ) > 0f
+        if (StartupIntroState.played || showNowPlaying || !animationsOn) return
+        StartupIntroState.played = true
+
+        val overlay = ComposeView(this)
+        overlay.setContent {
+            LunaStartupIntro(onFinished = {
+                overlay.post { (overlay.parent as? ViewGroup)?.removeView(overlay) }
+            })
+        }
+        addContentView(
+            overlay,
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
     }
 
     override fun onNewIntent(intent: android.content.Intent) {
