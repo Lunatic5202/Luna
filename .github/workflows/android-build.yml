@@ -58,6 +58,11 @@ jobs:
           status=$?
           msg=$(grep -E '^e: ' build.log | head -45 | sed 's/^e: file:\/\/\/home\/runner\/work\/[^/]*\/[^/]*\///' | sed 's/$/%0A/' | tr -d '\n')
           echo "::error title=Kotlin errors::${msg}"
+          if [ "$status" -ne 0 ]; then
+            echo "::group::Gradle build.log (last 160 lines)"
+            tail -n 160 build.log
+            echo "::endgroup::"
+          fi
           exit $status
 
       - name: Upload debug APK
