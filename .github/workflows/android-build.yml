@@ -10,12 +10,18 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: android-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   assemble:
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -29,13 +35,18 @@ jobs:
       - name: Decode signing key
         env:
           LUNA_KEYSTORE_BASE64: ${{ secrets.LUNA_KEYSTORE_BASE64 }}
+          LUNA_KEYSTORE_PASSWORD: ${{ secrets.LUNA_KEYSTORE_PASSWORD }}
+          LUNA_KEY_ALIAS: ${{ secrets.LUNA_KEY_ALIAS }}
+          LUNA_KEY_PASSWORD: ${{ secrets.LUNA_KEY_PASSWORD }}
         run: |
           if [ -n "$LUNA_KEYSTORE_BASE64" ]; then
-            echo "$LUNA_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/luna.jks"
+            printf '%s' "$LUNA_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/luna.jks"
             echo "LUNA_KEYSTORE_PATH=$RUNNER_TEMP/luna.jks" >> "$GITHUB_ENV"
-            echo "LUNA_KEYSTORE_PASSWORD=${{ secrets.LUNA_KEYSTORE_PASSWORD }}" >> "$GITHUB_ENV"
-            echo "LUNA_KEY_ALIAS=${{ secrets.LUNA_KEY_ALIAS }}" >> "$GITHUB_ENV"
-            echo "LUNA_KEY_PASSWORD=${{ secrets.LUNA_KEY_PASSWORD }}" >> "$GITHUB_ENV"
+            {
+              printf 'LUNA_KEYSTORE_PASSWORD=%s\n' "$LUNA_KEYSTORE_PASSWORD"
+              printf 'LUNA_KEY_ALIAS=%s\n' "$LUNA_KEY_ALIAS"
+              printf 'LUNA_KEY_PASSWORD=%s\n' "$LUNA_KEY_PASSWORD"
+            } >> "$GITHUB_ENV"
           else
             echo "No signing key configured; the release APK will be unsigned."
           fi
