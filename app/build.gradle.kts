@@ -75,7 +75,7 @@ dependencies {
 
     // Haze is deliberately isolated behind LunaGlassSurface so it can be
     // replaced or disabled without changing screen architecture.
-    implementation("dev.chrisbanes.haze:haze:1.6.10")
+    implementation("dev.chrisbanes.haze:haze:2.0.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
