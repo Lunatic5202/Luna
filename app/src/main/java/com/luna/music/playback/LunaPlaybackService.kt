@@ -29,7 +29,7 @@ class LunaPlaybackService : MediaSessionService() {
         super.onCreate()
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider(this).apply {
-                setSmallIcon(R.drawable.ic_launcher_monochrome)
+                setSmallIcon(R.drawable.luna_notification_logo)
             }
         )
         val player = ExoPlayer.Builder(this)
