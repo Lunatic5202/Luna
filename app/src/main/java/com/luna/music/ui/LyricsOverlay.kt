@@ -18,7 +18,6 @@ import androidx.compose.animation.core.tween
 import androidx.activity.compose.BackHandler
 import androidx.core.content.edit
 import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
@@ -57,7 +56,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -133,7 +131,7 @@ fun LyricsOverlay(
     }
     LaunchedEffect(visible, timedLines, currentLine) {
         if (visible && currentLine >= 0) {
-            lyricListState.animateScrollToItem(currentLine, scrollOffset = scrollOffset)
+            lyricListState.animateScrollToItem(currentLine + 1, scrollOffset = scrollOffset)
         }
     }
     BackHandler(enabled = visible, onBack = onClose)
@@ -215,6 +213,7 @@ fun LyricsOverlay(
                             modifier = Modifier.weight(1f).fillMaxWidth(),
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp)
                         ) {
+                            item(key = "lyrics-leading-space") { Spacer(Modifier.height(190.dp)) }
                             itemsIndexed(timedLines, key = { index, line -> "${line.timestampMs}:$index" }) { index, line ->
                                 val isCurrent = index == currentLine
                                 val lineColor by animateColorAsState(
@@ -227,25 +226,24 @@ fun LyricsOverlay(
                                     animationSpec = tween(320, easing = FastOutSlowInEasing),
                                     label = "lyric-line-emphasis"
                                 )
-                                Box(
-                                    Modifier.fillMaxWidth()
-                                        .padding(horizontal = 2.dp, vertical = 5.dp)
-                                        .clip(RoundedCornerShape(22.dp))
-                                        .background(palette.primary.copy(alpha = emphasis * 0.16f))
-                                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        line.text,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        color = lineColor,
-                                        fontSize = (19f + emphasis * 5f).sp,
-                                        lineHeight = (28f + emphasis * 5f).sp,
-                                        fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Medium,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
+                                Text(
+                                    line.text,
+                                    modifier = Modifier.fillMaxWidth()
+                                        .graphicsLayer {
+                                            val scale = 0.98f + emphasis * 0.02f
+                                            scaleX = scale
+                                            scaleY = scale
+                                            alpha = 0.46f + emphasis * 0.54f
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 12.dp),
+                                    color = lineColor,
+                                    fontSize = 20.sp,
+                                    lineHeight = 30.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    textAlign = TextAlign.Center
+                                )
                             }
+                            item(key = "lyrics-trailing-space") { Spacer(Modifier.height(190.dp)) }
                         }
                     } else Text(
                         removeTimestamps(lyricsState.text),
