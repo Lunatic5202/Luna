@@ -12,8 +12,9 @@ android {
         applicationId = "com.lunevra.luna"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        // Release CI passes the tag (v0.2.0 -> 0.2.0) and a rising build number so updates install over old builds.
+        versionCode = System.getenv("LUNA_VERSION_CODE")?.toIntOrNull() ?: 1
+        versionName = System.getenv("LUNA_VERSION_NAME") ?: "0.1.0"
     }
 
     // One permanent key, supplied by CI secrets (or the same env vars locally). Without it the
