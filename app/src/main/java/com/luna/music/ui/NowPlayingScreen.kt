@@ -332,8 +332,8 @@ fun NowPlayingScreen(
             Modifier.fillMaxSize().statusBarsPadding()
                 .padding(start = 26.dp, end = 26.dp, top = 18.dp, bottom = domeTotal)
         ) {
-            Row(
-                Modifier.fillMaxWidth().then(
+            Box(
+                Modifier.fillMaxWidth().heightIn(min = 48.dp).dismissOnSwipeDown(onBack).then(
                     with(visibilityScope) {
                         Modifier.animateEnterExit(
                             enter = fadeIn(tween(420, delayMillis = 140)) +
@@ -342,20 +342,17 @@ fun NowPlayingScreen(
                         )
                     }
                 ),
-                verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = palette.onBackground)
-                }
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                // Centred on the screen itself; the side padding keeps long album names clear of the lyrics button.
+                Column(
+                    Modifier.align(Alignment.Center).padding(horizontal = 56.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Text("PLAYING", color = palette.secondary, fontSize = 10.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Medium)
                     Text(track.album.ifBlank { "YOUR LIBRARY" }, color = palette.onBackground.copy(alpha = .65f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                IconButton(onClick = { showLyrics = true }) {
+                IconButton(onClick = { showLyrics = true }, modifier = Modifier.align(Alignment.CenterEnd)) {
                     Icon(Icons.Default.Lyrics, contentDescription = "Show lyrics", tint = palette.onBackground)
-                }
-                IconButton(onClick = openDrawer) {
-                    Icon(Icons.Default.Menu, contentDescription = "Open navigation", tint = palette.onBackground)
                 }
             }
 
@@ -798,27 +795,30 @@ fun NowPlayingScreen(
             Modifier.align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .height(44.dp)
-                .pointerInput(onBack) {
-                    var dragDistance = 0f
-                    var dismissed = false
-                    detectVerticalDragGestures(
-                        onDragStart = {
-                            dragDistance = 0f
-                            dismissed = false
-                        },
-                        onVerticalDrag = { change, amount ->
-                            dragDistance += amount
-                            if (!dismissed && dragDistance >= 72.dp.toPx()) {
-                                dismissed = true
-                                change.consume()
-                                onBack()
-                            }
-                        }
-                    )
-                }
+                .dismissOnSwipeDown(onBack)
         )
     }
     }
+}
+
+/** Pulling down roughly 72dp closes the player; taps and horizontal gestures are left alone. */
+private fun Modifier.dismissOnSwipeDown(onDismiss: () -> Unit): Modifier = pointerInput(onDismiss) {
+    var dragDistance = 0f
+    var dismissed = false
+    detectVerticalDragGestures(
+        onDragStart = {
+            dragDistance = 0f
+            dismissed = false
+        },
+        onVerticalDrag = { change, amount ->
+            dragDistance += amount
+            if (!dismissed && dragDistance >= 72.dp.toPx()) {
+                dismissed = true
+                change.consume()
+                onDismiss()
+            }
+        }
+    )
 }
 
 private data class QueueItemEntry(
