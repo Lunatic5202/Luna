@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark window so nothing flashes white before Compose draws its first frame. -->
+    <style name="Theme.Luna" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/luna_launcher_background</item>
+    </style>
+
+    <!-- Black system splash. The logo itself is animated by LunaStartupIntro. -->
+    <style name="Theme.Luna.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/luna_launcher_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/luna_splash_blank</item>
+        <item name="postSplashScreenTheme">@style/Theme.Luna</item>
+    </style>
+</resources>
