@@ -129,6 +129,10 @@ private data class LibraryDisplayData(
 )
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        const val EXTRA_OPEN_NOW_PLAYING = "com.luna.music.OPEN_NOW_PLAYING"
+    }
+
     private var mediaController: MediaController? = null
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private lateinit var repository: MusicRepository
@@ -242,6 +246,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        showNowPlaying = intent.getBooleanExtra(EXTRA_OPEN_NOW_PLAYING, false)
         repository = MusicRepository(this)
         comboRepository = ComboRepository(this)
         combos = comboRepository.load()
@@ -477,6 +482,14 @@ class MainActivity : ComponentActivity() {
             }
             }
     }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra(EXTRA_OPEN_NOW_PLAYING, false)) {
+            showNowPlaying = true
+        }
     }
 
     override fun onResume() {
