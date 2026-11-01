@@ -66,6 +66,8 @@ import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -118,6 +120,8 @@ import com.luna.music.ui.NowPlayingScreen
 import com.luna.music.ui.EqualizerScreen
 import com.luna.music.ui.CombosScreen
 import com.luna.music.ui.AboutScreen
+import com.luna.music.ui.DiscoverScreen
+import com.luna.music.ui.DownloadsScreen
 import com.luna.music.ui.readableContent
 import com.luna.music.ui.LocalLunaHazeState
 import com.luna.music.ui.LunaAurora
@@ -127,7 +131,7 @@ import com.luna.music.ui.StartupIntroState
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 
-private enum class LunaSection { Library, Equalizer, Combos, About }
+private enum class LunaSection { Library, Discover, Downloads, Equalizer, Combos, About }
 private enum class LibraryView { Tracks, Artists, Albums }
 private enum class LibrarySort { Title, Artist, Album }
 private data class LibraryDisplayData(
@@ -463,6 +467,8 @@ class MainActivity : ComponentActivity() {
                             isPlaying = true
                         }
                     )
+                    LunaSection.Discover -> DiscoverScreen(animatedPalette, openDrawer)
+                    LunaSection.Downloads -> DownloadsScreen(animatedPalette, openDrawer)
                     LunaSection.Equalizer -> EqualizerScreen(animatedPalette, openDrawer)
                     LunaSection.Combos -> CombosScreen(
                         palette = animatedPalette,
@@ -985,6 +991,8 @@ private fun LunaNavigationDrawer(
             Spacer(Modifier.height(28.dp))
             Text("YOUR SPACE", color = palette.onBackground.copy(alpha = 0.68f), fontSize = 10.sp, letterSpacing = 1.7.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 14.dp, bottom = 8.dp))
             LunaDrawerItem(palette, selected == LunaSection.Library, "Library", Icons.Default.LibraryMusic) { onSelect(LunaSection.Library) }
+            LunaDrawerItem(palette, selected == LunaSection.Discover, "Discover", Icons.Default.Explore) { onSelect(LunaSection.Discover) }
+            LunaDrawerItem(palette, selected == LunaSection.Downloads, "Downloads", Icons.Default.Download) { onSelect(LunaSection.Downloads) }
             LunaDrawerItem(palette, selected == LunaSection.Equalizer, "Equalizer", Icons.Default.GraphicEq) { onSelect(LunaSection.Equalizer) }
             LunaDrawerItem(palette, selected == LunaSection.Combos, "Combos", Icons.AutoMirrored.Filled.QueueMusic) { onSelect(LunaSection.Combos) }
             Spacer(Modifier.height(14.dp))
