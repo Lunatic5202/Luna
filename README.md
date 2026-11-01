@@ -25,73 +25,73 @@
 
 ---
 
-## 📸 Showcase
+## Showcase
 
 <table align="center">
-  <tr>
-    <td align="center"><img src="docs/screenshots/library.jpg" width="200" alt="Library"><br><sub><b>Library</b><br>mood tag + aurora</sub></td>
-    <td align="center"><img src="docs/screenshots/player.jpg" width="200" alt="Now playing"><br><sub><b>Now playing</b><br>live visualizer dome</sub></td>
-    <td align="center"><img src="docs/screenshots/lyrics.jpg" width="200" alt="Lyrics"><br><sub><b>Synced lyrics</b><br>line by line</sub></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="docs/screenshots/cd-stack.jpg" width="200" alt="CD stack"><br><sub><b>CD stack</b><br>hold the art to browse</sub></td>
-    <td align="center"><img src="docs/screenshots/combos.jpg" width="200" alt="Combos"><br><sub><b>Combos</b><br>your playlists</sub></td>
-    <td align="center"><img src="docs/screenshots/about.jpg" width="200" alt="About"><br><sub><b>About</b><br>liquid glass cards</sub></td>
-  </tr>
+ <tr>
+ <td align="center"><img src="docs/screenshots/library.jpg" width="200" alt="Library"><br><sub><b>Library</b><br>mood tag + aurora</sub></td>
+ <td align="center"><img src="docs/screenshots/player.jpg" width="200" alt="Now playing"><br><sub><b>Now playing</b><br>live visualizer dome</sub></td>
+ <td align="center"><img src="docs/screenshots/lyrics.jpg" width="200" alt="Lyrics"><br><sub><b>Synced lyrics</b><br>line by line</sub></td>
+ </tr>
+ <tr>
+ <td align="center"><img src="docs/screenshots/cd-stack.jpg" width="200" alt="CD stack"><br><sub><b>CD stack</b><br>hold the art to browse</sub></td>
+ <td align="center"><img src="docs/screenshots/combos.jpg" width="200" alt="Combos"><br><sub><b>Combos</b><br>your playlists</sub></td>
+ <td align="center"><img src="docs/screenshots/about.jpg" width="200" alt="About"><br><sub><b>About</b><br>liquid glass cards</sub></td>
+ </tr>
 </table>
 
 ---
 
-## ✨ Features
+## Features
 
 <table>
-  <tr>
-    <td valign="top" width="33%">
-      <h3>🎧 Playback</h3>
-      Background playback with notification and lock-screen controls, headset buttons, shuffle, repeat (off / all / one), a reorderable queue, auto-pause when headphones disconnect, and bad files skipped instead of stalling.
-    </td>
-    <td valign="top" width="33%">
-      <h3>💿 CD stack</h3>
-      Press and hold the artwork and your previous and upcoming tracks fan out like a stack of CDs. Slide to one, let go, and it plays.
-    </td>
-    <td valign="top" width="33%">
-      <h3>🌈 Vibes</h3>
-      Every track gets a mood from its album art (EMBER, OCEAN, NEON, MONO&hellip;) with CALM, GROOVY or ENERGETIC energy. The whole app and a slow aurora behind your library shift colour with the song.
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <h3>📊 Visualizer</h3>
-      A spectrum ring around the player dome dances to your music in real time. It only reads LUNA's own audio, and falls back to a synthetic beat if you skip the microphone permission.
-    </td>
-    <td valign="top">
-      <h3>🎤 Lyrics</h3>
-      Full-screen synced lyrics that follow the song, cached on your device with smart expiry so repeat views are instant.
-    </td>
-    <td valign="top">
-      <h3>🎚️ Equalizer</h3>
-      Vertical band sliders with a live response curve, 14 built-in presets, your own saved profiles and your device's own presets.
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <h3>📚 Library</h3>
-      Fast MediaStore scan, search across title, artist and album, Tracks / Artists / Albums views, sorting, and Combos: playlists made your way.
-    </td>
-    <td valign="top">
-      <h3>🫧 Liquid glass</h3>
-      Refracting, frosted glass surfaces tinted by the album art, with a specular highlight that follows your phone's tilt.
-    </td>
-    <td valign="top">
-      <h3>🌙 Startup</h3>
-      A black splash, then the moon blooms in, a gradient ring sweeps around it and LUNA dissolves into your library.
-    </td>
-  </tr>
+ <tr>
+ <td valign="top" width="33%">
+ <h3> Playback</h3>
+ Background playback with notification and lock-screen controls, headset buttons, shuffle, repeat (off / all / one), a reorderable queue, auto-pause when headphones disconnect, and bad files skipped instead of stalling.
+ </td>
+ <td valign="top" width="33%">
+ <h3> CD stack</h3>
+ Press and hold the artwork and your previous and upcoming tracks fan out like a stack of CDs. Slide to one, let go, and it plays.
+ </td>
+ <td valign="top" width="33%">
+ <h3> Vibes</h3>
+ Every track gets a mood from its album art (EMBER, OCEAN, NEON, MONO&hellip;) with CALM, GROOVY or ENERGETIC energy. The whole app and a slow aurora behind your library shift colour with the song.
+ </td>
+ </tr>
+ <tr>
+ <td valign="top">
+ <h3> Visualizer</h3>
+ A spectrum ring around the player dome dances to your music in real time. It only reads LUNA's own audio, and falls back to a synthetic beat if you skip the microphone permission.
+ </td>
+ <td valign="top">
+ <h3> Lyrics</h3>
+ Full-screen synced lyrics that follow the song, cached on your device with smart expiry so repeat views are instant.
+ </td>
+ <td valign="top">
+ <h3> Equalizer</h3>
+ Vertical band sliders with a live response curve, 14 built-in presets, your own saved profiles and your device's own presets.
+ </td>
+ </tr>
+ <tr>
+ <td valign="top">
+ <h3> Library</h3>
+ Fast MediaStore scan, search across title, artist and album, Tracks / Artists / Albums views, sorting, and Combos: playlists made your way.
+ </td>
+ <td valign="top">
+ <h3> Liquid glass</h3>
+ Refracting, frosted glass surfaces tinted by the album art, with a specular highlight that follows your phone's tilt.
+ </td>
+ <td valign="top">
+ <h3> Startup</h3>
+ A black splash, then the moon blooms in, a gradient ring sweeps around it and LUNA dissolves into your library.
+ </td>
+ </tr>
 </table>
 
 ---
 
-## 📥 Download
+## Download
 
 <div align="center">
 
@@ -111,7 +111,7 @@
 
 | Permission | Why | Required |
 | --- | --- | :---: |
-| Music library | Find and play the audio stored on your phone | ✅ |
+| Music library | Find and play the audio stored on your phone | |
 | Microphone | Lets the visualizer react to the music. It only reads LUNA's own audio; your voice is never recorded | optional |
 | Notifications | Playback controls in the notification shade and on the lock screen | optional |
 
@@ -119,7 +119,7 @@
 
 ---
 
-## 🛠 Build from source
+## Build from source
 
 - Android Studio with Android SDK 36
 - JDK 17
@@ -137,7 +137,7 @@ First build requires internet for Gradle dependencies. Lyrics are looked up on d
 
 ---
 
-## 🔬 Under the hood
+## Under the hood
 
 <details>
 <summary><b>Architecture notes</b></summary>
@@ -187,7 +187,7 @@ First build requires internet for Gradle dependencies. Lyrics are looked up on d
 
 ---
 
-## 💜 Credits
+## Credits
 
 - Liquid-glass surfaces use the Compose Backdrop library; the tilt-reactive highlight is inspired by [QWEA0/Liquid-Glass-Android](https://github.com/QWEA0/Liquid-Glass-Android) (MIT).
 - Lyrics from [LRCLIB](https://lrclib.net) and [lyrics.ovh](https://lyrics.ovh).
@@ -195,10 +195,9 @@ First build requires internet for Gradle dependencies. Lyrics are looked up on d
 
 <div align="center">
 
-<sub>Built with 🌙 by <b>Lunatic</b> &nbsp;·&nbsp; If LUNA makes your music nicer, a ⭐ means a lot.</sub>
+<sub>Built with by <b>Lunatic</b> &nbsp;·&nbsp; If LUNA makes your music nicer, a means a lot.</sub>
 
 </div>
-
 
 ## Playback and visualizer clarification
 
