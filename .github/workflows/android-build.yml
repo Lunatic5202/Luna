@@ -26,6 +26,20 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Decode signing key
+        env:
+          LUNA_KEYSTORE_BASE64: ${{ secrets.LUNA_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$LUNA_KEYSTORE_BASE64" ]; then
+            echo "$LUNA_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/luna.jks"
+            echo "LUNA_KEYSTORE_PATH=$RUNNER_TEMP/luna.jks" >> "$GITHUB_ENV"
+            echo "LUNA_KEYSTORE_PASSWORD=${{ secrets.LUNA_KEYSTORE_PASSWORD }}" >> "$GITHUB_ENV"
+            echo "LUNA_KEY_ALIAS=${{ secrets.LUNA_KEY_ALIAS }}" >> "$GITHUB_ENV"
+            echo "LUNA_KEY_PASSWORD=${{ secrets.LUNA_KEY_PASSWORD }}" >> "$GITHUB_ENV"
+          else
+            echo "No signing key configured; the release APK will be unsigned."
+          fi
+
       - name: Assemble debug APK
         run: |
           set +e
@@ -41,4 +55,12 @@ jobs:
           name: luna-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload signed release APK (smooth, install this one)
+        uses: actions/upload-artifact@v4
+        with:
+          name: luna-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: warn
           retention-days: 14
