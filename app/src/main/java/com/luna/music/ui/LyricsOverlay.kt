@@ -91,6 +91,10 @@ private sealed interface LyricsState {
 private data class TimedLyricLine(val timestampMs: Long, val text: String)
 private data class LyricsPayload(val text: String, val synced: Boolean)
 
+private const val LYRICS_SCRIM_BASE = 0.45f
+private const val LYRICS_SCRIM_TOP = 0.30f
+private const val LYRICS_SCRIM_BOTTOM = 0.50f
+
 @Composable
 fun LyricsOverlay(
     visible: Boolean,
@@ -149,7 +153,9 @@ fun LyricsOverlay(
             ),
             label = "lyrics-artwork-rotation"
         )
-        Box(Modifier.fillMaxSize().background(palette.background)) {
+        // Translucent on purpose: the player stays faintly visible behind the lyrics.
+        // Tune LYRICS_SCRIM_* below for more or less see-through.
+        Box(Modifier.fillMaxSize().background(palette.background.copy(alpha = LYRICS_SCRIM_BASE))) {
             AlbumArtwork(
                 artworkUri = track.artworkUri?.toString(),
                 palette = palette,
@@ -162,7 +168,10 @@ fun LyricsOverlay(
             Box(
                 Modifier.fillMaxSize().background(
                     Brush.verticalGradient(
-                        listOf(palette.background.copy(alpha = .68f), palette.background.copy(alpha = .92f))
+                        listOf(
+                            palette.background.copy(alpha = LYRICS_SCRIM_TOP),
+                            palette.background.copy(alpha = LYRICS_SCRIM_BOTTOM)
+                        )
                     )
                 )
             )
