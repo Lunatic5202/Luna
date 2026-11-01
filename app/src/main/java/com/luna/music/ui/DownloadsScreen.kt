@@ -1,6 +1,9 @@
 package com.luna.music.ui
 
 import android.app.DownloadManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,7 +17,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,15 +32,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
+import com.luna.music.data.AudioImportRepository
 import com.luna.music.data.downloads.LunaDownloadRepository
 import com.luna.music.theme.AlbumPalette
 import kotlinx.coroutines.Dispatchers
@@ -51,9 +59,32 @@ fun DownloadsScreen(
 ) {
     val context = LocalContext.current
     val repository = remember(context) { LunaDownloadRepository(context) }
+    val importer = remember(context) { AudioImportRepository(context) }
     val scope = rememberCoroutineScope()
     var downloads by remember { mutableStateOf(emptyList<LunaDownloadRepository.DownloadItem>()) }
     var loading by remember { mutableStateOf(true) }
+    var importFeedback by rememberSaveable { mutableStateOf("") }
+
+    val audioPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            scope.launch {
+                runCatching {
+                    importer.importAudio(uris)
+                }.onSuccess { result ->
+                    importFeedback = if (result.imported > 0) {
+                        "Added ${result.imported} audio ${if (result.imported == 1) "file" else "files"} to your LUNA library" +
+                            if (result.skipped > 0) " · ${result.skipped} skipped" else ""
+                    } else {
+                        "No supported audio files were imported."
+                    }
+                }.onFailure {
+                    importFeedback = it.message ?: "Unable to import the selected audio."
+                }
+            }
+        }
+    }
 
     LaunchedEffect(repository) {
         while (isActive) {
@@ -76,6 +107,34 @@ fun DownloadsScreen(
         subtitle = "Your music, coming home.",
         openDrawer = openDrawer
     ) {
+        Button(
+            onClick = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    audioPicker.launch(arrayOf("audio/*"))
+                } else {
+                    importFeedback = "Importing into the LUNA library requires Android 10 or newer."
+                }
+            },
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = palette.primary,
+                contentColor = readableContent(palette.primary)
+            )
+        ) {
+            Icon(Icons.Default.FolderOpen, contentDescription = null)
+            Text("  Import downloaded audio")
+        }
+        Text(
+            importFeedback.ifBlank {
+                "After downloading from Spotdown in your browser, choose the audio files here to add them to your library."
+            },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
+            color = palette.onBackground.copy(alpha = 0.70f),
+            fontSize = 12.sp,
+            lineHeight = 17.sp
+        )
+
         if (loading) {
             Column(
                 modifier = Modifier.fillMaxWidth().weight(1f),
@@ -110,7 +169,7 @@ fun DownloadsScreen(
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Your active and completed downloads will show up here.",
+                    "LUNA-managed downloads will show up here. Imported audio is added directly to your library.",
                     color = palette.onBackground.copy(alpha = 0.72f),
                     fontSize = 13.sp,
                     lineHeight = 19.sp,
