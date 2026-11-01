@@ -1,5 +1,6 @@
 package com.luna.music.ui
 
+import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -31,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,6 +44,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
+private const val SPOTDOWN_URL = "https://spotdown.org/en2"
 private val supportedAudioExtensions = setOf("mp3", "m4a", "aac", "flac", "ogg", "opus", "wav")
 
 @Composable
@@ -49,7 +53,7 @@ fun DiscoverScreen(
     openDrawer: () -> Unit
 ) {
     var query by rememberSaveable { mutableStateOf("") }
-    var feedback by rememberSaveable { mutableStateOf("Search by song or artist when a provider is connected. Direct audio links can be downloaded now.") }
+    var feedback by rememberSaveable { mutableStateOf("") }
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -72,7 +76,7 @@ fun DiscoverScreen(
             onValueChange = { query = it; feedback = "" },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            placeholder = { Text("Songs, artists or a direct audio link") },
+            placeholder = { Text("Song, artist or Spotify link") },
             leadingIcon = {
                 Icon(Icons.Default.Search, contentDescription = null, tint = palette.muted)
             },
@@ -98,8 +102,8 @@ fun DiscoverScreen(
             )
         )
 
+        Spacer(Modifier.height(12.dp))
         if (canDownload) {
-            Spacer(Modifier.height(12.dp))
             Button(
                 onClick = {
                     val uri = directUri ?: return@Button
@@ -110,7 +114,7 @@ fun DiscoverScreen(
                                 downloadRepository.enqueue(uri, fileName.substringBeforeLast('.'), fileName)
                             }
                         }.onSuccess {
-                            feedback = "Added to Downloads"
+                            feedback = "Added to LUNA Downloads"
                             query = ""
                         }.onFailure {
                             feedback = it.message ?: "Unable to start this download"
@@ -127,9 +131,38 @@ fun DiscoverScreen(
                 Icon(Icons.Default.Download, contentDescription = null)
                 Text("  Download audio")
             }
+        } else {
+            Button(
+                onClick = {
+                    val searchText = query.trim()
+                    if (searchText.isNotBlank()) {
+                        clipboard.setText(AnnotatedString(searchText))
+                    }
+                    runCatching {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(SPOTDOWN_URL)))
+                    }.onSuccess {
+                        feedback = if (searchText.isBlank()) {
+                            "Spotdown opened in your browser."
+                        } else {
+                            "Search copied. Paste it into Spotdown, then download your track."
+                        }
+                    }.onFailure {
+                        feedback = "Couldn't open a browser for Spotdown."
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = palette.primary,
+                    contentColor = readableContent(palette.primary)
+                )
+            ) {
+                Icon(Icons.Default.OpenInBrowser, contentDescription = null)
+                Text(if (query.isBlank()) "  Open Spotdown" else "  Search on Spotdown")
+            }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(20.dp))
         LunaGlassSurface(palette, Modifier.fillMaxWidth()) {
             Column(
                 Modifier.fillMaxWidth().padding(20.dp),
@@ -137,14 +170,18 @@ fun DiscoverScreen(
                 horizontalAlignment = Alignment.Start
             ) {
                 Text(
-                    if (canDownload) "Direct audio link detected" else "Discover is being connected",
+                    if (canDownload) "Direct audio link detected" else "Continue in Spotdown",
                     color = palette.onBackground,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     feedback.ifBlank {
-                        "Native song and artist search will appear here once an authorized catalog provider is connected. Website pages are not treated as audio files."
+                        if (canDownload) {
+                            "This is a direct audio file, so LUNA can download it into your Music folder."
+                        } else {
+                            "Search and choose tracks on Spotdown in your browser. When the audio is downloaded, import it from the Downloads screen to add it to your LUNA library."
+                        }
                     },
                     color = palette.onBackground.copy(alpha = 0.76f),
                     fontSize = 13.sp,
