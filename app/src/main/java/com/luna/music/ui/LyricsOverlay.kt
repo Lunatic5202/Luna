@@ -10,6 +10,8 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -133,7 +135,7 @@ fun LyricsOverlay(
     }
     LaunchedEffect(visible, timedLines, currentLine) {
         if (visible && currentLine >= 0) {
-            lyricListState.animateScrollToItem(currentLine, scrollOffset = scrollOffset)
+            lyricListState.animateScrollToItem(currentLine + 1, scrollOffset = scrollOffset)
         }
     }
     BackHandler(enabled = visible, onBack = onClose)
@@ -220,17 +222,37 @@ fun LyricsOverlay(
                             modifier = Modifier.weight(1f).fillMaxWidth(),
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp)
                         ) {
+                            item(key = "lyrics-leading-space") { Spacer(Modifier.height(190.dp)) }
                             itemsIndexed(timedLines, key = { index, line -> "${line.timestampMs}:$index" }) { index, line ->
+                                val isCurrent = index == currentLine
+                                val lineColor by animateColorAsState(
+                                    targetValue = if (isCurrent) palette.onBackground else palette.onBackground.copy(alpha = 0.48f),
+                                    animationSpec = tween(320, easing = FastOutSlowInEasing),
+                                    label = "lyric-line-color"
+                                )
+                                val emphasis by animateFloatAsState(
+                                    targetValue = if (isCurrent) 1f else 0f,
+                                    animationSpec = tween(320, easing = FastOutSlowInEasing),
+                                    label = "lyric-line-emphasis"
+                                )
                                 Text(
                                     line.text,
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp),
-                                    color = if (index == currentLine) palette.primary else palette.onBackground.copy(alpha = 0.55f),
-                                    fontSize = if (index == currentLine) 22.sp else 18.sp,
+                                    modifier = Modifier.fillMaxWidth()
+                                        .graphicsLayer {
+                                            val scale = 0.98f + emphasis * 0.02f
+                                            scaleX = scale
+                                            scaleY = scale
+                                            alpha = 0.46f + emphasis * 0.54f
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 12.dp),
+                                    color = lineColor,
+                                    fontSize = 20.sp,
                                     lineHeight = 30.sp,
-                                    fontWeight = if (index == currentLine) FontWeight.Bold else FontWeight.Medium,
+                                    fontWeight = FontWeight.SemiBold,
                                     textAlign = TextAlign.Center
                                 )
                             }
+                            item(key = "lyrics-trailing-space") { Spacer(Modifier.height(190.dp)) }
                         }
                     } else Text(
                         removeTimestamps(lyricsState.text),
