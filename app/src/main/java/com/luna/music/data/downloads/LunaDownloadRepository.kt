@@ -5,7 +5,6 @@ import android.content.Context
 import android.database.Cursor
 import android.net.Uri
 import android.os.Environment
-import android.webkit.MimeTypeMap
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
@@ -98,7 +97,8 @@ class LunaDownloadRepository(context: Context) {
     private fun Cursor.toItem(): DownloadItem {
         val id = getLong(getColumnIndexOrThrow(DownloadManager.COLUMN_ID))
         val stored = preferences.getString(KEY_PREFIX + id, null).orEmpty().split('\n', limit = 3)
-        val local = getString(getColumnIndex(DownloadManager.COLUMN_LOCAL_URI))?.let(Uri::parse)
+        val localIndex = getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
+        val local = if (localIndex >= 0) getString(localIndex)?.let(Uri::parse) else null
         return DownloadItem(
             id = id,
             title = stored.getOrNull(0).orEmpty().ifBlank { "Audio download" },
