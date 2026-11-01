@@ -198,7 +198,7 @@ fun NowPlayingScreen(
         label = "artwork-playing-scale"
     )
     val peekScale = animateFloatAsState(
-        targetValue = if (showArtworkPeek) 0.74f else 1f,
+        targetValue = if (showArtworkPeek) 0.70f else 1f,
         animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow),
         label = "artwork-peek-scale"
     )
@@ -927,10 +927,12 @@ private fun BoxScope.StackDisc(
         animationSpec = spring(dampingRatio = 0.62f, stiffness = Spring.StiffnessMedium),
         label = "disc-lift"
     )
-    // Fractions of the disc's own width. The rim of disc N ends a little past disc N-1,
-    // so five discs still fit inside the artwork area on a narrow phone.
-    val restScale = 0.74f - 0.03f * (depth - 1)
-    val rimEdge = 0.37f + 0.045f * depth
+    // Fractions of the disc's own width. The rim of disc N ends a little past disc N-1; the
+    // fifth disc's rim reaches ~0.66 of a disc width, which still clears the screen edge on
+    // a narrow phone. Deeper discs also sag slightly so the stack reads as a fan.
+    val restScale = 0.70f - 0.03f * (depth - 1)
+    val rimEdge = 0.35f + 0.062f * depth
+    val fanDrop = 0.02f * (depth - 1)
     val restCenter = rimEdge - restScale / 2f
     val liftedCenter = 0.15f
     val liftedScale = 0.80f
@@ -947,8 +949,10 @@ private fun BoxScope.StackDisc(
                 scaleX = scale
                 scaleY = scale
                 translationX = side * center * size.width * r
+                translationY = size.height * fanDrop * (1f - l) * r
                 rotationZ = side * 24f * (1f - r)
-                alpha = r * (1f - 0.1f * (depth - 1))
+                // Opaque once revealed; only fades while the stack opens and closes.
+                alpha = r
             }
             .clip(CircleShape)
     ) {
