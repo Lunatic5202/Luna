@@ -14,9 +14,17 @@ Want automatic updates? Add `https://github.com/Lunatic5202/Luna` to [Obtainium]
 
 On first launch LUNA asks for your music library (required), the microphone (so the visualizer can react to the music; LUNA never records your voice) and notifications (playback controls on the lock screen). Only the library is required.
 
-<!-- Screenshots: add images to docs/screenshots/ and list them here, e.g.
-<p align="center"><img src="docs/screenshots/player.png" width="240"> <img src="docs/screenshots/library.png" width="240"></p>
--->
+## Screenshots
+<p align="center">
+  <img src="docs/screenshots/library.jpg" width="190" alt="Library with mood tag">
+  <img src="docs/screenshots/player.jpg" width="190" alt="Now playing with visualizer dome">
+  <img src="docs/screenshots/lyrics.jpg" width="190" alt="Synced lyrics">
+</p>
+<p align="center">
+  <img src="docs/screenshots/cd-stack.jpg" width="190" alt="Hold artwork to browse the queue as a stack of CDs">
+  <img src="docs/screenshots/combos.jpg" width="190" alt="Creating a combo playlist">
+  <img src="docs/screenshots/about.jpg" width="190" alt="About page">
+</p>
 
 ## Features
 - Local audio discovery through MediaStore (scanned off the UI thread)
