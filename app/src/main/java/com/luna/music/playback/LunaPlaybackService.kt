@@ -4,6 +4,9 @@ import android.app.PendingIntent
 import android.content.Intent
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.session.DefaultMediaNotificationProvider
@@ -34,8 +37,35 @@ class LunaPlaybackService : MediaSessionService() {
         )
         val player = ExoPlayer.Builder(this)
             .setHandleAudioBecomingNoisy(true)
+            // Keep the CPU awake while playing so the screen can turn off mid-song.
+            .setWakeMode(C.WAKE_MODE_LOCAL)
             .build()
-            .apply { setAudioAttributes(AudioAttributes.DEFAULT, true) }
+            .apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(C.USAGE_MEDIA)
+                        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                        .build(),
+                    true
+                )
+            }
+        // A file that can't be decoded (deleted, corrupt) skips ahead instead of stalling.
+        player.addListener(object : Player.Listener {
+            private var failedInARow = 0
+
+            override fun onPlayerError(error: PlaybackException) {
+                failedInARow++
+                if (player.hasNextMediaItem() && failedInARow <= player.mediaItemCount) {
+                    player.seekToNextMediaItem()
+                    player.prepare()
+                    player.play()
+                }
+            }
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isPlaying) failedInARow = 0
+            }
+        })
         // Service and UI share a process, so publish the audio session id directly.
         // (A MediaController cannot read it across the session boundary.)
         _audioSessionId.value = player.audioSessionId
@@ -64,6 +94,14 @@ class LunaPlaybackService : MediaSessionService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
         mediaSession
+
+    /** Swiping the app away while paused should shut the service down, not leave it idle. */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        val player = mediaSession?.player
+        if (player == null || !player.playWhenReady || player.mediaItemCount == 0) {
+            stopSelf()
+        }
+    }
 
     override fun onDestroy() {
         _audioSessionId.value = 0
