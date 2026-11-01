@@ -47,11 +47,11 @@ class LunaDownloadRepository(context: Context) {
         val fileName = safeFileName(requestedFileName ?: source.lastPathSegment ?: title)
         val request = DownloadManager.Request(source)
             .setTitle(title.ifBlank { fileName })
-            .setDescription("Downloading to Music")
+            .setDescription("Downloading to Downloads/LUNA")
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             .setAllowedOverMetered(true)
             .setAllowedOverRoaming(false)
-            .setDestinationInExternalPublicDir(Environment.DIRECTORY_MUSIC, fileName)
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "LUNA/$fileName")
 
         val id = manager.enqueue(request)
         preferences.edit().putString(KEY_PREFIX + id, "$title\n$fileName\n$source").apply()
