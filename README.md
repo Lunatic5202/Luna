@@ -204,3 +204,7 @@ First build requires internet for Gradle dependencies. Lyrics are looked up on d
 The visualizer is intended to react to LUNA's own playback session, not to record ambient microphone audio. Android may still require the platform's audio-visualizer permission path for the effect API; explain that purpose before requesting it. Keep the visualizer optional through settings and preserve local-only music scanning and playback.
 
 Album-art palette extraction and artwork loading are performance-sensitive parts of the player. When changing them, test fast library scrolling and the mini-player-to-full-player transition on a real device, not only an emulator screenshot. Do not claim a performance fix without measuring or reproducing the affected transition.
+
+## License
+
+Original source code and project documentation are licensed under the [MIT License](LICENSE). Third-party libraries, datasets, fonts, media, and other separately licensed materials are excluded and remain under their respective terms.
