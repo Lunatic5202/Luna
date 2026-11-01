@@ -71,7 +71,7 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.11.1")
     implementation("androidx.media3:media3-common:1.11.1")
     implementation("androidx.media3:media3-session:1.11.1")
-    implementation("io.github.kyant0:backdrop:1.0.1")
+    implementation("io.github.kyant0:backdrop:2.0.1")
 
     // Haze is deliberately isolated behind LunaGlassSurface so it can be
     // replaced or disabled without changing screen architecture.
