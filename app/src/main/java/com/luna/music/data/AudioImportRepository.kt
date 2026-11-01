@@ -27,9 +27,10 @@ class AudioImportRepository(context: Context) {
         for (uri in uris) {
             val displayName = queryDisplayName(uri)
             val extension = displayName.substringAfterLast('.', "").lowercase(Locale.ROOT)
-            val mimeType = resolver.getType(uri) ?: mimeTypeFor(extension)
+            val detectedMimeType = resolver.getType(uri)
+            val mimeType = detectedMimeType?.takeIf { it.startsWith("audio/") } ?: mimeTypeFor(extension)
 
-            if (extension !in SUPPORTED_EXTENSIONS || mimeType?.startsWith("audio/") != true) {
+            if (extension !in SUPPORTED_EXTENSIONS || mimeType == null) {
                 skipped++
                 continue
             }
