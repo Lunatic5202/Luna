@@ -16,8 +16,24 @@ android {
         versionName = "0.1.0"
     }
 
+    // One permanent key, supplied by CI secrets (or the same env vars locally). Without it the
+    // release build stays unsigned. A stable key is what lets updates install over old versions
+    // and stops every build looking like a brand-new developer to Play Protect.
+    val keystorePath: String? = System.getenv("LUNA_KEYSTORE_PATH")
+    signingConfigs {
+        if (!keystorePath.isNullOrBlank()) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("LUNA_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("LUNA_KEY_ALIAS")
+                keyPassword = System.getenv("LUNA_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         getByName("release") {
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
