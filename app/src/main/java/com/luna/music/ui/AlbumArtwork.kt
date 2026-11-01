@@ -40,12 +40,27 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Shared in-memory artwork cache. Library rows, the mini-player and the
- * fullscreen player all request the same URI, so a cover decoded while
- * scrolling is immediately reusable by the shared-element transition.
+ * How much resolution a surface needs. Decoding every cover at full size for a 46dp
+ * list row wastes time and fills the cache with multi-megabyte bitmaps, which makes
+ * scrolling a big library constantly re-decode.
+ */
+enum class ArtworkQuality(val maxDimension: Int) {
+    /** List rows. */
+    Thumb(192),
+    /** Blurred backdrops, mini player and the discs in the peek stack. */
+    Medium(512),
+    /** The main player disc. */
+    Full(768)
+}
+
+private class CachedArtwork(val bitmap: Bitmap, val sufficient: Boolean)
+
+/**
+ * Shared in-memory artwork cache. Surfaces request the same URI at different sizes; a larger
+ * copy can stand in for a smaller request, and a smaller one is shown (upscaled) while the
+ * exact size decodes, so no surface flashes a placeholder.
  */
 private object AlbumArtworkCache {
-    private const val MAX_DECODED_DIMENSION = 768
     private val loaderScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val inFlight = ConcurrentHashMap<String, CompletableDeferred<Bitmap?>>()
 
@@ -56,29 +71,46 @@ private object AlbumArtworkCache {
             (value.byteCount / 1024).coerceAtLeast(1)
     }
 
-    @Synchronized
-    fun get(key: String): Bitmap? = memory.get(key)?.takeUnless { it.isRecycled }
+    private fun key(uri: String, quality: ArtworkQuality) = "$uri@${quality.maxDimension}"
 
     @Synchronized
-    fun put(key: String, bitmap: Bitmap) {
+    private fun get(key: String): Bitmap? = memory.get(key)?.takeUnless { it.isRecycled }
+
+    @Synchronized
+    private fun put(key: String, bitmap: Bitmap) {
         if (!bitmap.isRecycled) memory.put(key, bitmap)
     }
 
-    suspend fun load(context: Context, artworkUri: String): Bitmap? {
-        get(artworkUri)?.let { return it }
+    /** Best cached copy for [quality]: same or larger size first, otherwise the largest smaller one. */
+    fun cached(uri: String, quality: ArtworkQuality): CachedArtwork? {
+        val sizes = ArtworkQuality.entries
+        for (candidate in sizes) {
+            if (candidate.maxDimension < quality.maxDimension) continue
+            get(key(uri, candidate))?.let { return CachedArtwork(it, sufficient = true) }
+        }
+        for (candidate in sizes.asReversed()) {
+            if (candidate.maxDimension >= quality.maxDimension) continue
+            get(key(uri, candidate))?.let { return CachedArtwork(it, sufficient = false) }
+        }
+        return null
+    }
+
+    suspend fun load(context: Context, artworkUri: String, quality: ArtworkQuality): Bitmap? {
+        val cacheKey = key(artworkUri, quality)
+        get(cacheKey)?.let { return it }
 
         val promise = CompletableDeferred<Bitmap?>()
-        val existing = inFlight.putIfAbsent(artworkUri, promise)
+        val existing = inFlight.putIfAbsent(cacheKey, promise)
         val shared = existing ?: promise.also { owner ->
             loaderScope.launch {
                 try {
-                    val decoded = decode(context, artworkUri)
-                    decoded?.let { put(artworkUri, it) }
+                    val decoded = decode(context, artworkUri, quality.maxDimension)
+                    decoded?.let { put(cacheKey, it) }
                     owner.complete(decoded)
                 } catch (_: Exception) {
                     owner.complete(null)
                 } finally {
-                    inFlight.remove(artworkUri, owner)
+                    inFlight.remove(cacheKey, owner)
                 }
             }
         }
@@ -88,33 +120,32 @@ private object AlbumArtworkCache {
         return shared.await()
     }
 
-    private suspend fun decode(context: Context, artworkUri: String): Bitmap? = withContext(Dispatchers.IO) {
-        runCatching {
-            val uri = artworkUri.toUri()
-            val resolver = context.contentResolver
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+    private suspend fun decode(context: Context, artworkUri: String, maxDimension: Int): Bitmap? =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val uri = artworkUri.toUri()
+                val resolver = context.contentResolver
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
 
-            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-                return@runCatching null
-            }
+                if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                    return@runCatching null
+                }
 
-            var sampleSize = 1
-            while (
-                maxOf(bounds.outWidth, bounds.outHeight) / (sampleSize * 2) >= MAX_DECODED_DIMENSION
-            ) {
-                sampleSize *= 2
-            }
+                var sampleSize = 1
+                while (maxOf(bounds.outWidth, bounds.outHeight) / (sampleSize * 2) >= maxDimension) {
+                    sampleSize *= 2
+                }
 
-            val options = BitmapFactory.Options().apply {
-                inSampleSize = sampleSize
-                inPreferredConfig = Bitmap.Config.ARGB_8888
-            }
-            resolver.openInputStream(uri)?.use {
-                BitmapFactory.decodeStream(it, null, options)
-            }
-        }.getOrNull()
-    }
+                val options = BitmapFactory.Options().apply {
+                    inSampleSize = sampleSize
+                    inPreferredConfig = Bitmap.Config.ARGB_8888
+                }
+                resolver.openInputStream(uri)?.use {
+                    BitmapFactory.decodeStream(it, null, options)
+                }
+            }.getOrNull()
+        }
 }
 
 @Composable
@@ -122,18 +153,19 @@ fun AlbumArtwork(
     artworkUri: String?,
     modifier: Modifier = Modifier,
     palette: AlbumPalette,
-    shape: Shape = RoundedCornerShape(18.dp)
+    shape: Shape = RoundedCornerShape(18.dp),
+    quality: ArtworkQuality = ArtworkQuality.Full
 ) {
     val context = LocalContext.current
-    var bitmap by remember(artworkUri) {
-        mutableStateOf(artworkUri?.takeIf(String::isNotBlank)?.let(AlbumArtworkCache::get))
+    var cached by remember(artworkUri, quality) {
+        mutableStateOf(artworkUri?.takeIf(String::isNotBlank)?.let { AlbumArtworkCache.cached(it, quality) })
     }
 
-    // Reuse decoded covers across every surface. In particular, artwork
-    // already shown in a library row/mini-player is ready for fullscreen.
-    LaunchedEffect(artworkUri, context) {
-        if (!artworkUri.isNullOrBlank()) {
-            bitmap = AlbumArtworkCache.load(context.applicationContext, artworkUri)
+    // Reuse decoded covers across every surface. Only decode when nothing big enough is cached.
+    LaunchedEffect(artworkUri, quality, context) {
+        if (!artworkUri.isNullOrBlank() && cached?.sufficient != true) {
+            AlbumArtworkCache.load(context.applicationContext, artworkUri, quality)
+                ?.let { cached = CachedArtwork(it, sufficient = true) }
         }
     }
 
@@ -142,7 +174,7 @@ fun AlbumArtwork(
             .background(Brush.linearGradient(listOf(palette.primary, palette.secondary))),
         contentAlignment = Alignment.Center
     ) {
-        val image = bitmap
+        val image = cached?.bitmap
         if (image != null && !image.isRecycled) {
             Image(
                 image.asImageBitmap(),
@@ -157,4 +189,3 @@ fun AlbumArtwork(
         }
     }
 }
-

@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -129,9 +130,9 @@ fun EqualizerBars(color: Color, playing: Boolean, modifier: Modifier = Modifier)
             horizontalArrangement = Arrangement.spacedBy(2.5.dp),
             verticalAlignment = Alignment.Bottom
         ) {
-            EqualizerBar(0.25f, color)
-            EqualizerBar(0.3f, color)
-            EqualizerBar(0.2f, color)
+            EqualizerBar({ 0.25f }, color)
+            EqualizerBar({ 0.3f }, color)
+            EqualizerBar({ 0.2f }, color)
         }
     }
 }
@@ -139,17 +140,17 @@ fun EqualizerBars(color: Color, playing: Boolean, modifier: Modifier = Modifier)
 @Composable
 private fun PlayingEqualizerBars(color: Color, modifier: Modifier) {
     val transition = rememberInfiniteTransition(label = "equalizer")
-    val a by transition.animateFloat(
+    val a = transition.animateFloat(
         0.25f, 1f,
         infiniteRepeatable(tween(520, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "eq-a"
     )
-    val b by transition.animateFloat(
+    val b = transition.animateFloat(
         0.3f, 1f,
         infiniteRepeatable(tween(380, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "eq-b"
     )
-    val c by transition.animateFloat(
+    val c = transition.animateFloat(
         0.2f, 1f,
         infiniteRepeatable(tween(460, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "eq-c"
@@ -159,17 +160,22 @@ private fun PlayingEqualizerBars(color: Color, modifier: Modifier) {
         horizontalArrangement = Arrangement.spacedBy(2.5.dp),
         verticalAlignment = Alignment.Bottom
     ) {
-        EqualizerBar(a, color)
-        EqualizerBar(b, color)
-        EqualizerBar(c, color)
+        EqualizerBar({ a.value }, color)
+        EqualizerBar({ b.value }, color)
+        EqualizerBar({ c.value }, color)
     }
 }
 
+/** Bar height is applied in the draw phase, so the animation never recomposes the row. */
 @Composable
-private fun EqualizerBar(level: Float, color: Color) {
+private fun EqualizerBar(level: () -> Float, color: Color) {
     Box(
         Modifier.width(3.dp)
-            .fillMaxHeight(level)
+            .fillMaxHeight()
+            .graphicsLayer {
+                scaleY = level()
+                transformOrigin = TransformOrigin(0.5f, 1f)
+            }
             .clip(RoundedCornerShape(50))
             .background(color)
     )

@@ -36,6 +36,10 @@ import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.positionChange
 import kotlin.math.abs
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.media3.common.C
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -151,9 +155,9 @@ fun NowPlayingScreen(
     onNext: () -> Unit,
     onPrevious: () -> Unit
 ) {
-    var position by remember(track.id) { mutableFloatStateOf(0f) }
+    // Track length in ms. It changes once per track; the ticking position lives in PlaybackSeekBar
+    // so the whole screen no longer recomposes every few hundred milliseconds.
     var duration by remember(track.id) { mutableFloatStateOf(0f) }
-    var dragging by remember { mutableStateOf(false) }
     var showQueue by remember { mutableStateOf(false) }
     var showLyrics by remember { mutableStateOf(false) }
     var queueItems by remember(controller) { mutableStateOf(readQueueItems(controller)) }
@@ -165,55 +169,53 @@ fun NowPlayingScreen(
     val queueSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var volumeVisible by remember { mutableStateOf(false) }
     var showArtworkPeek by remember(track.id) { mutableStateOf(false) }
-    // -1 = previous card highlighted, 0 = none, 1 = next card highlighted while holding the artwork.
+    // Signed number of discs the finger has slid through while holding the artwork:
+    // negative = previous tracks, 0 = none, positive = upcoming tracks.
     var peekSelection by remember(track.id) { mutableIntStateOf(0) }
+    var peekPrevious by remember { mutableStateOf<List<ArtworkPeekItem>>(emptyList()) }
+    var peekNext by remember { mutableStateOf<List<ArtworkPeekItem>>(emptyList()) }
     val haptic = LocalHapticFeedback.current
     val volumeAlpha by animateFloatAsState(if (volumeVisible) 1f else 0f, animationSpec = tween(180), label = "volume-indicator")
-    val progress by animateFloatAsState(position, animationSpec = tween(250, easing = FastOutSlowInEasing), label = "track-progress")
     var volumePercent by remember { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
     val dragX = remember { Animatable(0f) }
-    val artworkPulse = if (playing) {
-        val pulse by rememberInfiniteTransition(label = "artwork-pulse").animateFloat(
-            initialValue = 1f,
-            targetValue = 1.018f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1900, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "artwork-pulse-scale"
-        )
-        pulse
-    } else {
-        1f
+    // These values are only read inside graphicsLayer blocks, so animating them redraws the
+    // artwork layer without recomposing the whole player on every frame.
+    val artworkPulse = remember { Animatable(1f) }
+    LaunchedEffect(playing) {
+        if (playing) {
+            artworkPulse.animateTo(
+                1.018f,
+                infiniteRepeatable(tween(1900, easing = FastOutSlowInEasing), RepeatMode.Reverse)
+            )
+        } else {
+            artworkPulse.animateTo(1f, tween(400))
+        }
     }
-    val artworkScale by animateFloatAsState(
-        targetValue = if (playing) artworkPulse else 0.93f,
+    val playingScale = animateFloatAsState(
+        targetValue = if (playing) 1f else 0.93f,
         animationSpec = spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessLow),
         label = "artwork-playing-scale"
     )
-    val peekScale by animateFloatAsState(
-        targetValue = if (showArtworkPeek) 0.8f else 1f,
+    val peekScale = animateFloatAsState(
+        targetValue = if (showArtworkPeek) 0.74f else 1f,
         animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow),
         label = "artwork-peek-scale"
     )
+
+    // Keep the disc stack composed until its exit animation has finished.
+    LaunchedEffect(showArtworkPeek) {
+        if (!showArtworkPeek) {
+            delay(600)
+            peekPrevious = emptyList()
+            peekNext = emptyList()
+        }
+    }
 
     LaunchedEffect(volumePercent) {
         if (volumeVisible) {
             delay(750)
             volumeVisible = false
-        }
-    }
-
-    LaunchedEffect(controller, playing, track.id, dragging) {
-        val player = controller ?: return@LaunchedEffect
-        if (dragging) return@LaunchedEffect
-        while (true) {
-            val total = player.duration.coerceAtLeast(0L)
-            duration = total.toFloat()
-            position = player.currentPosition.coerceAtLeast(0L).toFloat().coerceAtMost(duration)
-            if (!playing) break
-            delay(400)
         }
     }
 
@@ -254,33 +256,6 @@ fun NowPlayingScreen(
         }
     }
 
-    val previousArtwork = controller?.let { player ->
-        player.previousMediaItemIndex
-            .takeIf { it >= 0 && it < player.mediaItemCount }
-            ?.let(player::getMediaItemAt)
-            ?.let { item ->
-                ArtworkPeekItem(
-                    id = item.mediaId,
-                    artworkUri = item.mediaMetadata.artworkUri?.toString(),
-                    title = item.mediaMetadata.title?.toString().orEmpty(),
-                    artist = item.mediaMetadata.artist?.toString().orEmpty()
-                )
-            }
-    }
-    val nextArtwork = controller?.let { player ->
-        player.nextMediaItemIndex
-            .takeIf { it >= 0 && it < player.mediaItemCount }
-            ?.let(player::getMediaItemAt)
-            ?.let { item ->
-                ArtworkPeekItem(
-                    id = item.mediaId,
-                    artworkUri = item.mediaMetadata.artworkUri?.toString(),
-                    title = item.mediaMetadata.title?.toString().orEmpty(),
-                    artist = item.mediaMetadata.artist?.toString().orEmpty()
-                )
-            }
-    }
-
     val liquidBackdrop = rememberLayerBackdrop()
     CompositionLocalProvider(LocalLunaLiquidBackdrop provides liquidBackdrop) {
     Box(
@@ -298,7 +273,8 @@ fun NowPlayingScreen(
             artworkUri = track.artworkUri?.toString(),
             modifier = Modifier.fillMaxSize().blur(16.dp).alpha(0.20f),
             palette = palette,
-            shape = RectangleShape
+            shape = RectangleShape,
+            quality = ArtworkQuality.Medium
         )
         Box(
             Modifier.fillMaxSize().background(
@@ -396,8 +372,8 @@ fun NowPlayingScreen(
                     Box(
                         Modifier.fillMaxSize(0.92f)
                             .graphicsLayer {
-                                scaleX = artworkPulse
-                                scaleY = artworkPulse
+                                scaleX = artworkPulse.value
+                                scaleY = artworkPulse.value
                                 alpha = glowAlpha
                             }
                             .background(
@@ -411,18 +387,29 @@ fun NowPlayingScreen(
                                 CircleShape
                             )
                     )
+                    ArtworkDiscStack(
+                        previous = peekPrevious,
+                        next = peekNext,
+                        visible = showArtworkPeek,
+                        selection = peekSelection,
+                        palette = palette
+                    )
                     AlbumArtwork(
                         artworkUri = track.artworkUri?.toString(),
                         modifier = Modifier.lunaSharedArtwork(sharedScope, visibilityScope).fillMaxSize(0.84f)
-                            .pointerInput(controller, track.id, previousArtwork != null, nextArtwork != null) {
-                                val hasPrevious = previousArtwork != null
-                                val hasNext = nextArtwork != null
-                                val chooseDistance = 44.dp.toPx()
+                            .pointerInput(controller, track.id) {
+                                val firstDiscDistance = 40.dp.toPx()
+                                val discStep = 22.dp.toPx()
                                 awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false)
                                     when (val start = awaitArtworkGestureStart(down)) {
                                         is ArtworkGestureStart.Hold -> {
-                                            // Hold: peek the neighbouring tracks. Slide toward one and release to play it.
+                                            // Hold: fan the queue out as a stack of discs. Slide sideways to run
+                                            // through them and release to play the highlighted one.
+                                            val previousDiscs = readPeekItems(controller, forward = false, limit = MAX_PEEK_DISCS)
+                                            val nextDiscs = readPeekItems(controller, forward = true, limit = MAX_PEEK_DISCS)
+                                            peekPrevious = previousDiscs
+                                            peekNext = nextDiscs
                                             showArtworkPeek = true
                                             peekSelection = 0
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -430,16 +417,18 @@ fun NowPlayingScreen(
                                             val finished = drag(start.change.id) { change ->
                                                 change.consume()
                                                 val dx = change.position.x - originX
-                                                val selection = when {
-                                                    dx > chooseDistance && hasNext -> 1
-                                                    dx < -chooseDistance && hasPrevious -> -1
-                                                    else -> 0
+                                                val steps = if (abs(dx) < firstDiscDistance) 0
+                                                else 1 + ((abs(dx) - firstDiscDistance) / discStep).toInt()
+                                                val selection = if (dx > 0f) {
+                                                    steps.coerceAtMost(nextDiscs.size)
+                                                } else {
+                                                    -steps.coerceAtMost(previousDiscs.size)
                                                 }
                                                 if (selection != peekSelection) {
                                                     peekSelection = selection
                                                     if (selection != 0) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                                 }
-                                                val limit = chooseDistance * 1.6f
+                                                val limit = firstDiscDistance * 1.6f
                                                 scope.launch { dragX.snapTo(dx.coerceIn(-limit, limit) * 0.3f) }
                                             }
                                             val chosen = if (finished) peekSelection else 0
@@ -448,7 +437,14 @@ fun NowPlayingScreen(
                                             scope.launch { dragX.animateTo(0f, spring(dampingRatio = 0.6f, stiffness = 300f)) }
                                             if (chosen != 0) {
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                if (chosen > 0) onNext() else onPrevious()
+                                                when (chosen) {
+                                                    1 -> onNext()
+                                                    -1 -> onPrevious()
+                                                    else -> {
+                                                        val target = if (chosen > 0) nextDiscs[chosen - 1] else previousDiscs[-chosen - 1]
+                                                        controller?.seekToDefaultPosition(target.index)
+                                                    }
+                                                }
                                             }
                                         }
                                         is ArtworkGestureStart.Swipe -> {
@@ -499,40 +495,28 @@ fun NowPlayingScreen(
                                 }
                             }
                             .graphicsLayer {
-                                scaleX = artworkScale * peekScale
-                                scaleY = artworkScale * peekScale
+                                val discScale = playingScale.value * artworkPulse.value * peekScale.value
+                                scaleX = discScale
+                                scaleY = discScale
                                 translationX = dragX.value
                                 rotationZ = dragX.value / 34f
                             }.clip(CircleShape),
                         palette = palette,
                         shape = CircleShape
                     )
-                    ArtworkPeekOverlay(
-                        visible = showArtworkPeek,
-                        item = previousArtwork,
-                        caption = "PREVIOUS",
-                        emptyLabel = "Start of queue",
-                        selected = peekSelection < 0,
-                        palette = palette,
-                        modifier = Modifier.align(Alignment.CenterStart).offset(x = (-8).dp),
-                        fromLeft = true
-                    )
-                    ArtworkPeekOverlay(
-                        visible = showArtworkPeek,
-                        item = nextArtwork,
-                        caption = "NEXT",
-                        emptyLabel = "End of queue",
-                        selected = peekSelection > 0,
-                        palette = palette,
-                        modifier = Modifier.align(Alignment.CenterEnd).offset(x = 8.dp),
-                        fromLeft = false
-                    )
                     ArtworkPeekHint(
                         visible = showArtworkPeek,
-                        text = when {
-                            peekSelection < 0 -> "Release to play previous"
-                            peekSelection > 0 -> "Release to play next"
-                            else -> "Slide to a side and let go"
+                        text = run {
+                            val chosenDisc = when {
+                                peekSelection > 0 -> peekNext.getOrNull(peekSelection - 1)
+                                peekSelection < 0 -> peekPrevious.getOrNull(-peekSelection - 1)
+                                else -> null
+                            }
+                            when {
+                                chosenDisc != null -> "Release to play \u00B7 " + chosenDisc.title.ifBlank { "this track" }
+                                peekPrevious.isEmpty() && peekNext.isEmpty() -> "Nothing else in the queue"
+                                else -> "Slide sideways to browse the queue"
+                            }
                         },
                         palette = palette,
                         modifier = Modifier.align(Alignment.BottomCenter).offset(y = 6.dp)
@@ -608,33 +592,13 @@ fun NowPlayingScreen(
                             Text(artist, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = palette.secondary, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
-                    Column(Modifier.fillMaxWidth()) {
-                        Slider(
-                            modifier = Modifier.semantics {
-                                contentDescription = "Playback position"
-                            },
-                            value = if (duration > 0f) progress.coerceIn(0f, duration) else 0f,
-                            onValueChange = {
-                                dragging = true
-                                position = it
-                            },
-                            onValueChangeFinished = {
-                                controller?.seekTo(position.toLong())
-                                dragging = false
-                            },
-                            valueRange = 0f..duration.coerceAtLeast(1f),
-                            enabled = duration > 0f,
-                            colors = androidx.compose.material3.SliderDefaults.colors(
-                                thumbColor = palette.onBackground,
-                                activeTrackColor = palette.primary,
-                                inactiveTrackColor = palette.onBackground.copy(alpha = .18f)
-                            )
-                        )
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(formatTime(position.toLong()), color = palette.onBackground.copy(alpha = .6f), fontSize = 11.sp)
-                            Text(formatTime(duration.toLong()), color = palette.onBackground.copy(alpha = .6f), fontSize = 11.sp)
-                        }
-                    }
+                    PlaybackSeekBar(
+                        controller = controller,
+                        playing = playing,
+                        trackKey = track.id,
+                        palette = palette,
+                        onDuration = { if (it != duration) duration = it }
+                    )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         val shuffleTint by animateColorAsState(
                             if (controller?.shuffleModeEnabled == true) palette.primary else palette.onBackground.copy(alpha = .55f),
@@ -798,7 +762,8 @@ fun NowPlayingScreen(
                                     artworkUri = item.mediaMetadata.artworkUri?.toString(),
                                     modifier = Modifier.size(46.dp),
                                     palette = palette,
-                                    shape = RoundedCornerShape(12.dp)
+                                    shape = RoundedCornerShape(12.dp),
+                                    quality = ArtworkQuality.Thumb
                                 )
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
@@ -876,121 +841,195 @@ private fun readQueueItems(controller: MediaController?): List<QueueItemEntry> {
 }
 
 private data class ArtworkPeekItem(
+    val index: Int,
     val id: String,
     val artworkUri: String?,
     val title: String,
     val artist: String
 )
 
+/** How many discs fan out on each side while the artwork is held. */
+private const val MAX_PEEK_DISCS = 5
+
+/** Walks the queue in playback order (shuffle aware) and returns up to [limit] tracks. */
+private fun readPeekItems(player: Player?, forward: Boolean, limit: Int): List<ArtworkPeekItem> {
+    if (player == null) return emptyList()
+    val timeline = player.currentTimeline
+    if (timeline.isEmpty) return emptyList()
+    val repeatMode = if (player.repeatMode == Player.REPEAT_MODE_ONE) Player.REPEAT_MODE_OFF else player.repeatMode
+    val shuffle = player.shuffleModeEnabled
+    val seen = hashSetOf(player.currentMediaItemIndex)
+    val items = ArrayList<ArtworkPeekItem>(limit)
+    var index = player.currentMediaItemIndex
+    while (items.size < limit) {
+        index = if (forward) {
+            timeline.getNextWindowIndex(index, repeatMode, shuffle)
+        } else {
+            timeline.getPreviousWindowIndex(index, repeatMode, shuffle)
+        }
+        if (index == C.INDEX_UNSET || !seen.add(index)) break
+        val item = player.getMediaItemAt(index)
+        items += ArtworkPeekItem(
+            index = index,
+            id = item.mediaId,
+            artworkUri = item.mediaMetadata.artworkUri?.toString(),
+            title = item.mediaMetadata.title?.toString().orEmpty(),
+            artist = item.mediaMetadata.artist?.toString().orEmpty()
+        )
+    }
+    return items
+}
+
+/**
+ * Previous and upcoming tracks as a stack of CDs behind the playing disc. Each deeper disc
+ * is a little smaller and shows a thin rim; the highlighted one slides out in front.
+ * Emitted straight into the parent Box so zIndex can interleave it with the main disc.
+ */
 @Composable
-private fun ArtworkPeekOverlay(
+private fun BoxScope.ArtworkDiscStack(
+    previous: List<ArtworkPeekItem>,
+    next: List<ArtworkPeekItem>,
     visible: Boolean,
-    item: ArtworkPeekItem?,
-    caption: String,
-    emptyLabel: String,
-    selected: Boolean,
-    palette: AlbumPalette,
-    modifier: Modifier,
-    fromLeft: Boolean
+    selection: Int,
+    palette: AlbumPalette
 ) {
-    val cardScale by animateFloatAsState(
-        targetValue = if (selected) 1.1f else 1f,
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium),
-        label = "peek-card-scale"
+    // Deepest first, so nearer discs are drawn over the ones behind them.
+    for (depth in MAX_PEEK_DISCS downTo 1) {
+        previous.getOrNull(depth - 1)?.let {
+            StackDisc(it, depth, -1, visible, selection == -depth, palette)
+        }
+        next.getOrNull(depth - 1)?.let {
+            StackDisc(it, depth, 1, visible, selection == depth, palette)
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.StackDisc(
+    item: ArtworkPeekItem,
+    depth: Int,
+    side: Int,
+    visible: Boolean,
+    selected: Boolean,
+    palette: AlbumPalette
+) {
+    val reveal = animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = if (visible) 320 else 180,
+            delayMillis = if (visible) depth * 40 else 0,
+            easing = FastOutSlowInEasing
+        ),
+        label = "disc-reveal"
     )
-    AnimatedVisibility(
-        visible = visible,
-        modifier = modifier,
-        enter = fadeIn(tween(150)) +
-            scaleIn(spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)) +
-            slideInHorizontally(tween(260, easing = FastOutSlowInEasing)) {
-                if (fromLeft) -it / 2 else it / 2
-            },
-        exit = fadeOut(tween(120)) + scaleOut(animationSpec = tween(180)) +
-            slideOutHorizontally(tween(180)) { if (fromLeft) -it / 3 else it / 3 }
+    val lift = animateFloatAsState(
+        targetValue = if (selected) 1f else 0f,
+        animationSpec = spring(dampingRatio = 0.62f, stiffness = Spring.StiffnessMedium),
+        label = "disc-lift"
+    )
+    // Fractions of the disc's own width. The rim of disc N ends a little past disc N-1,
+    // so five discs still fit inside the artwork area on a narrow phone.
+    val restScale = 0.74f - 0.03f * (depth - 1)
+    val rimEdge = 0.37f + 0.045f * depth
+    val restCenter = rimEdge - restScale / 2f
+    val liftedCenter = 0.15f
+    val liftedScale = 0.80f
+    val rimColor = if (selected) palette.primary else Color.White.copy(alpha = 0.35f)
+    Box(
+        Modifier.align(Alignment.Center)
+            .fillMaxSize(0.84f)
+            .zIndex(if (selected) 6f else 0f)
+            .graphicsLayer {
+                val r = reveal.value
+                val l = lift.value
+                val scale = (restScale + (liftedScale - restScale) * l) * (0.85f + 0.15f * r)
+                val center = restCenter + (liftedCenter - restCenter) * l
+                scaleX = scale
+                scaleY = scale
+                translationX = side * center * size.width * r
+                rotationZ = side * 24f * (1f - r)
+                alpha = r * (1f - 0.1f * (depth - 1))
+            }
+            .clip(CircleShape)
     ) {
-        ArtworkPeekCard(
-            item = item,
-            caption = caption,
-            emptyLabel = emptyLabel,
-            selected = selected,
+        AlbumArtwork(
+            artworkUri = item.artworkUri,
+            modifier = Modifier.fillMaxSize(),
             palette = palette,
-            modifier = Modifier.graphicsLayer {
-                scaleX = cardScale
-                scaleY = cardScale
+            shape = CircleShape,
+            quality = ArtworkQuality.Medium
+        )
+        // Disc hub and rim so it reads as a CD rather than a coaster.
+        Box(
+            Modifier.fillMaxSize().drawBehind {
+                val hole = size.minDimension * 0.075f
+                drawCircle(Color.Black.copy(alpha = 0.5f), radius = hole * 1.9f)
+                drawCircle(palette.background, radius = hole)
+                val stroke = if (selected) 3.dp.toPx() else 1.5.dp.toPx()
+                drawCircle(rimColor, radius = size.minDimension / 2f - stroke / 2f, style = Stroke(stroke))
             }
         )
     }
 }
 
 @Composable
-private fun ArtworkPeekCard(
-    item: ArtworkPeekItem?,
-    caption: String,
-    emptyLabel: String,
-    selected: Boolean,
+private fun PlaybackSeekBar(
+    controller: MediaController?,
+    playing: Boolean,
+    trackKey: Any,
     palette: AlbumPalette,
-    modifier: Modifier
+    onDuration: (Float) -> Unit
 ) {
-    val ringColor = if (selected) palette.primary else Color.White.copy(alpha = 0.5f)
-    LunaGlassSurface(
-        palette = palette,
-        modifier = modifier.width(108.dp).alpha(if (item == null) 0.62f else 1f),
-        shape = RoundedCornerShape(24.dp)
-    ) {
-        Column(
-            Modifier.fillMaxWidth()
-                .background(if (selected) palette.primary.copy(alpha = 0.22f) else Color.Transparent)
-                .padding(horizontal = 10.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Text(
-                caption,
-                color = if (selected) palette.primary else palette.onBackground.copy(alpha = 0.7f),
-                fontSize = 9.sp,
-                letterSpacing = 1.6.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Box(
-                Modifier.size(72.dp)
-                    .clip(CircleShape)
-                    .border(if (selected) 2.dp else 1.dp, ringColor, CircleShape)
-                    .padding(3.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                if (item != null) {
-                    AlbumArtwork(
-                        artworkUri = item.artworkUri,
-                        modifier = Modifier.fillMaxSize().clip(CircleShape),
-                        palette = palette,
-                        shape = CircleShape
-                    )
-                } else {
-                    Text("\u2014", color = palette.onBackground.copy(alpha = 0.6f), fontSize = 24.sp)
-                }
+    var position by remember(trackKey) { mutableFloatStateOf(0f) }
+    var duration by remember(trackKey) { mutableFloatStateOf(0f) }
+    var dragging by remember { mutableStateOf(false) }
+
+    LaunchedEffect(controller, playing, trackKey, dragging) {
+        val player = controller ?: return@LaunchedEffect
+        if (dragging) return@LaunchedEffect
+        while (true) {
+            val total = player.duration.coerceAtLeast(0L).toFloat()
+            if (total != duration) {
+                duration = total
+                onDuration(total)
             }
-            Text(
-                item?.title ?: emptyLabel,
-                modifier = Modifier.fillMaxWidth(),
-                color = palette.onBackground,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+            position = player.currentPosition.coerceAtLeast(0L).toFloat().coerceAtMost(total)
+            if (!playing) break
+            delay(400)
+        }
+    }
+    val progress by animateFloatAsState(
+        targetValue = position,
+        animationSpec = tween(250, easing = FastOutSlowInEasing),
+        label = "track-progress"
+    )
+
+    Column(Modifier.fillMaxWidth()) {
+        Slider(
+            modifier = Modifier.semantics {
+                contentDescription = "Playback position"
+            },
+            // While dragging follow the finger directly instead of the smoothed value.
+            value = if (duration > 0f) (if (dragging) position else progress).coerceIn(0f, duration) else 0f,
+            onValueChange = {
+                dragging = true
+                position = it
+            },
+            onValueChangeFinished = {
+                controller?.seekTo(position.toLong())
+                dragging = false
+            },
+            valueRange = 0f..duration.coerceAtLeast(1f),
+            enabled = duration > 0f,
+            colors = androidx.compose.material3.SliderDefaults.colors(
+                thumbColor = palette.onBackground,
+                activeTrackColor = palette.primary,
+                inactiveTrackColor = palette.onBackground.copy(alpha = .18f)
             )
-            if (item != null && item.artist.isNotBlank()) {
-                Text(
-                    item.artist,
-                    modifier = Modifier.fillMaxWidth(),
-                    color = palette.onBackground.copy(alpha = 0.7f),
-                    fontSize = 10.sp,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(formatTime(position.toLong()), color = palette.onBackground.copy(alpha = .6f), fontSize = 11.sp)
+            Text(formatTime(duration.toLong()), color = palette.onBackground.copy(alpha = .6f), fontSize = 11.sp)
         }
     }
 }
@@ -1011,10 +1050,12 @@ private fun ArtworkPeekHint(
         LunaGlassSurface(palette = palette, shape = RoundedCornerShape(50), refraction = false) {
             Text(
                 text,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.widthIn(max = 260.dp).padding(horizontal = 16.dp, vertical = 8.dp),
                 color = palette.onBackground,
                 fontSize = 11.sp,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

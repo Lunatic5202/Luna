@@ -109,6 +109,7 @@ import com.luna.music.ui.rememberLunaGlassLight
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.luna.music.ui.AlbumArtwork
+import com.luna.music.ui.ArtworkQuality
 import com.luna.music.ui.NowPlayingScreen
 import com.luna.music.ui.EqualizerScreen
 import com.luna.music.ui.CombosScreen
@@ -760,7 +761,7 @@ private fun LunaHome(
                                 .animateContentSize(tween(240)).padding(14.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                AlbumArtwork(track.artworkUri?.toString(), Modifier.lunaSharedArtwork(sharedScope, visibilityScope).size(48.dp), palette, CircleShape)
+                                AlbumArtwork(track.artworkUri?.toString(), Modifier.lunaSharedArtwork(sharedScope, visibilityScope).size(48.dp), palette, CircleShape, ArtworkQuality.Medium)
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
                                     AnimatedContent(
@@ -840,7 +841,7 @@ private fun LibraryTrackRow(
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AlbumArtwork(track.artworkUri?.toString(), Modifier.size(46.dp), palette)
+        AlbumArtwork(track.artworkUri?.toString(), Modifier.size(46.dp), palette, quality = ArtworkQuality.Thumb)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(track.title, color = palette.onBackground, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold)

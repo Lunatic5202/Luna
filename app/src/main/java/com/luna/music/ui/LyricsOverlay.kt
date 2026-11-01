@@ -140,7 +140,7 @@ fun LyricsOverlay(
         enter = fadeIn(tween(260)) + slideInVertically(tween(420, easing = FastOutSlowInEasing)) { it / 8 },
         exit = fadeOut(tween(180)) + slideOutVertically(tween(320, easing = FastOutSlowInEasing)) { it / 10 }
     ) {
-        val rotation by rememberInfiniteTransition(label = "lyrics-artwork").animateFloat(
+        val rotation = rememberInfiniteTransition(label = "lyrics-artwork").animateFloat(
             initialValue = -8f,
             targetValue = 8f,
             animationSpec = infiniteRepeatable(
@@ -154,8 +154,9 @@ fun LyricsOverlay(
                 artworkUri = track.artworkUri?.toString(),
                 palette = palette,
                 shape = CircleShape,
+                quality = ArtworkQuality.Medium,
                 modifier = Modifier.fillMaxWidth().aspectRatio(1f).align(Alignment.Center)
-                    .graphicsLayer { rotationZ = rotation; scaleX = 1.12f; scaleY = 1.12f }
+                    .graphicsLayer { rotationZ = rotation.value; scaleX = 1.12f; scaleY = 1.12f }
                     .blur(22.dp).alpha(.22f)
             )
             Box(
