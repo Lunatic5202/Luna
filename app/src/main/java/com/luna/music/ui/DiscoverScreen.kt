@@ -38,6 +38,7 @@ import com.luna.music.data.downloads.LunaDownloadRepository
 import com.luna.music.theme.AlbumPalette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 
 private val supportedAudioExtensions = setOf("mp3", "m4a", "aac", "flac", "ogg", "opus", "wav")
@@ -103,9 +104,11 @@ fun DiscoverScreen(
                 onClick = {
                     val uri = directUri ?: return@Button
                     val fileName = uri.lastPathSegment.orEmpty()
-                    scope.launch(Dispatchers.IO) {
+                    scope.launch {
                         runCatching {
-                            downloadRepository.enqueue(uri, fileName.substringBeforeLast('.'), fileName)
+                            withContext(Dispatchers.IO) {
+                                downloadRepository.enqueue(uri, fileName.substringBeforeLast('.'), fileName)
+                            }
                         }.onSuccess {
                             feedback = "Added to Downloads"
                             query = ""
