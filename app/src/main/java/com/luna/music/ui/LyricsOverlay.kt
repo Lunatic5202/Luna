@@ -10,12 +10,15 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.activity.compose.BackHandler
 import androidx.core.content.edit
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
@@ -54,6 +57,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -212,15 +216,35 @@ fun LyricsOverlay(
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp)
                         ) {
                             itemsIndexed(timedLines, key = { index, line -> "${line.timestampMs}:$index" }) { index, line ->
-                                Text(
-                                    line.text,
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp),
-                                    color = if (index == currentLine) palette.primary else palette.onBackground.copy(alpha = 0.55f),
-                                    fontSize = if (index == currentLine) 22.sp else 18.sp,
-                                    lineHeight = 30.sp,
-                                    fontWeight = if (index == currentLine) FontWeight.Bold else FontWeight.Medium,
-                                    textAlign = TextAlign.Center
+                                val isCurrent = index == currentLine
+                                val lineColor by animateColorAsState(
+                                    targetValue = if (isCurrent) palette.onBackground else palette.onBackground.copy(alpha = 0.48f),
+                                    animationSpec = tween(320, easing = FastOutSlowInEasing),
+                                    label = "lyric-line-color"
                                 )
+                                val emphasis by animateFloatAsState(
+                                    targetValue = if (isCurrent) 1f else 0f,
+                                    animationSpec = tween(320, easing = FastOutSlowInEasing),
+                                    label = "lyric-line-emphasis"
+                                )
+                                Box(
+                                    Modifier.fillMaxWidth()
+                                        .padding(horizontal = 2.dp, vertical = 5.dp)
+                                        .clip(RoundedCornerShape(22.dp))
+                                        .background(palette.primary.copy(alpha = emphasis * 0.16f))
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        line.text,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        color = lineColor,
+                                        fontSize = (19f + emphasis * 5f).sp,
+                                        lineHeight = (28f + emphasis * 5f).sp,
+                                        fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Medium,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
                             }
                         }
                     } else Text(
