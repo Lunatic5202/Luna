@@ -2,7 +2,7 @@
 
 <img src="app/src/main/res/drawable-nodpi/luna_brand_logo.png" width="132" alt="LUNA logo">
 
-# LUNA 🌙
+# LUNA 
 
 **Music, in another dimension.**
 
