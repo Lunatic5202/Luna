@@ -213,14 +213,27 @@ fun PlaybackVisualizer(
             // Half-angle of the arc that is actually visible on screen.
             val half = asin((size.width / 2f / radius).coerceAtMost(1f))
             val halfDeg = Math.toDegrees(half.toDouble()).toFloat()
+            var bassEnergy = 0f
+            for (band in 0 until 6) bassEnergy += peaks[band]
+            bassEnergy = (bassEnergy / 6f).coerceIn(0f, 1f)
+            val ringColor = lerp(palette.primary, palette.secondary, 0.28f)
             drawArc(
-                color = palette.primary.copy(alpha = 0.22f),
+                color = ringColor.copy(alpha = 0.035f + bassEnergy * 0.12f),
                 startAngle = 270f - halfDeg,
                 sweepAngle = 2f * halfDeg,
                 useCenter = false,
                 topLeft = Offset(center.x - radius, top),
                 size = Size(radius * 2f, radius * 2f),
-                style = Stroke(width = 1.dp.toPx())
+                style = Stroke(width = 5.dp.toPx() + bassEnergy * 9.dp.toPx())
+            )
+            drawArc(
+                color = ringColor.copy(alpha = 0.12f + bassEnergy * 0.28f),
+                startAngle = 270f - halfDeg,
+                sweepAngle = 2f * halfDeg,
+                useCenter = false,
+                topLeft = Offset(center.x - radius, top),
+                size = Size(radius * 2f, radius * 2f),
+                style = Stroke(width = 1.dp.toPx() + bassEnergy * 2.dp.toPx())
             )
 
             val maxLen = (DOME_RING_INSET.toPx() - 6.dp.toPx())
