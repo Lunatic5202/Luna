@@ -236,7 +236,8 @@ fun AboutScreen(palette: AlbumPalette, openDrawer: () -> Unit) {
             ) {
                 LunaBrandLogo(
                     modifier = Modifier.size(148.dp).align(Alignment.CenterHorizontally),
-                    contentDescription = "Luna music player"
+                    contentDescription = "Luna music player",
+                    colored = true
                 )
                 Text("Built by Lunatic", color = palette.onBackground, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
                 Text("Version 0.1.0", color = palette.onBackground.copy(alpha = 0.78f), fontSize = 13.sp, textAlign = TextAlign.Center)

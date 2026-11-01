@@ -13,10 +13,13 @@ import com.luna.music.R
 @Composable
 fun LunaBrandLogo(
     modifier: Modifier = Modifier,
-    contentDescription: String = "Luna"
+    contentDescription: String = "Luna",
+    colored: Boolean = false
 ) {
     Image(
-        painter = painterResource(R.drawable.luna_brand_logo),
+        painter = painterResource(
+            if (colored) R.drawable.luna_brand_logo else R.drawable.luna_notification_logo
+        ),
         contentDescription = contentDescription,
         modifier = modifier.clip(RoundedCornerShape(20.dp)),
         contentScale = ContentScale.Fit
