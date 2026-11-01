@@ -38,6 +38,7 @@ import androidx.compose.ui.input.pointer.positionChange
 import kotlin.math.abs
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.media3.common.C
 import androidx.compose.foundation.layout.Arrangement
@@ -164,6 +165,9 @@ fun NowPlayingScreen(
     val queueListState = rememberLazyListState()
     var draggedQueueKey by remember { mutableStateOf<String?>(null) }
     var draggedQueueOffset by remember { mutableFloatStateOf(0f) }
+    // Reordering is previewed on the local list and committed to the player once, when the finger lifts.
+    var dragFromIndex by remember { mutableIntStateOf(-1) }
+    var dragCurrentKey by remember { mutableStateOf<String?>(null) }
     val queueAutoScrollEdge = with(LocalDensity.current) { 54.dp.toPx() }
     val queueAutoScrollStep = with(LocalDensity.current) { 18.dp.toPx() }
     val queueSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -222,7 +226,7 @@ fun NowPlayingScreen(
     DisposableEffect(controller) {
         val listener = object : Player.Listener {
             override fun onTimelineChanged(timeline: Timeline, reason: Int) {
-                queueItems = readQueueItems(controller)
+                if (draggedQueueKey == null) queueItems = readQueueItems(controller)
             }
         }
         controller?.addListener(listener)
@@ -236,7 +240,6 @@ fun NowPlayingScreen(
             val moved = reordered.removeAt(fromIndex)
             reordered.add(toIndex, moved)
             queueItems = reordered
-            if (queueReorderEnabled) controller?.moveMediaItem(fromIndex, toIndex)
         }
     }
 
@@ -681,7 +684,8 @@ fun NowPlayingScreen(
                         itemsIndexed(queueItems, key = { _, entry -> entry.key }) { index, entry ->
                             val item = entry.mediaItem
                             val isDragging = draggedQueueKey == entry.key
-                            val isCurrent = index == (controller?.currentMediaItemIndex ?: -1)
+                            val isCurrent = dragCurrentKey?.let { it == entry.key }
+                                ?: (index == (controller?.currentMediaItemIndex ?: -1))
                             val queueRowColor by animateColorAsState(
                                 when {
                                     isDragging -> palette.primary.copy(alpha = .28f)
@@ -692,7 +696,8 @@ fun NowPlayingScreen(
                                 label = "queue-current-track"
                             )
                             Row(
-                                Modifier.fillMaxWidth().animateItem()
+                                Modifier.fillMaxWidth()
+                                    .animateItem(placementSpec = if (isDragging) null else spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset.VisibilityThreshold))
                                     .zIndex(if (isDragging) 1f else 0f)
                                     .graphicsLayer {
                                         translationY = if (isDragging) draggedQueueOffset else 0f
@@ -708,38 +713,57 @@ fun NowPlayingScreen(
                                                 onDragStart = {
                                                     draggedQueueKey = entry.key
                                                     draggedQueueOffset = 0f
+                                                    dragFromIndex = queueItems.indexOfFirst { it.key == entry.key }
+                                                    dragCurrentKey = queueItems.getOrNull(controller?.currentMediaItemIndex ?: -1)?.key
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 },
                                                 onDragEnd = {
+                                                    val from = dragFromIndex
+                                                    val to = queueItems.indexOfFirst { it.key == entry.key }
+                                                    if (from >= 0 && to >= 0 && from != to) controller?.moveMediaItem(from, to)
                                                     draggedQueueKey = null
                                                     draggedQueueOffset = 0f
+                                                    dragFromIndex = -1
+                                                    // Keep highlighting by identity until the player has caught up with the move.
+                                                    scope.launch {
+                                                        delay(700)
+                                                        dragCurrentKey = null
+                                                    }
                                                 },
                                                 onDragCancel = {
+                                                    queueItems = readQueueItems(controller)
                                                     draggedQueueKey = null
                                                     draggedQueueOffset = 0f
+                                                    dragFromIndex = -1
+                                                    dragCurrentKey = null
                                                 },
                                                 onDrag = { change, amount ->
                                                     change.consume()
                                                     draggedQueueOffset += amount.y
-                                                    val draggedInfo = queueListState.layoutInfo.visibleItemsInfo
-                                                        .firstOrNull { it.key == entry.key }
-                                                    if (draggedInfo != null) {
-                                                        val draggedCenter = draggedInfo.offset +
-                                                            draggedInfo.size / 2f + draggedQueueOffset
-                                                        val target = queueListState.layoutInfo.visibleItemsInfo
-                                                            .asSequence()
-                                                            .filter { it.key != entry.key }
-                                                            .minByOrNull {
-                                                                kotlin.math.abs(it.offset + it.size / 2f - draggedCenter)
+                                                    val layout = queueListState.layoutInfo.visibleItemsInfo
+                                                    val draggedInfo = layout.firstOrNull { it.key == entry.key }
+                                                    val currentIndex = queueItems.indexOfFirst { it.key == entry.key }
+                                                    // After a swap the list layout lags a frame behind; wait for it
+                                                    // instead of judging against stale positions (that caused the jitter).
+                                                    if (draggedInfo != null && draggedInfo.index == currentIndex) {
+                                                        val draggedCenter = draggedInfo.offset + draggedInfo.size / 2f + draggedQueueOffset
+                                                        // Swap only once the dragged row's centre passes the middle of the
+                                                        // row it is overlapping, so it settles instead of flip-flopping.
+                                                        val target = layout.firstOrNull {
+                                                            it.key != entry.key &&
+                                                                draggedCenter >= it.offset && draggedCenter <= it.offset + it.size
+                                                        }
+                                                        if (target != null) {
+                                                            val targetCenter = target.offset + target.size / 2f
+                                                            val crossed = if (target.index > draggedInfo.index) {
+                                                                draggedCenter > targetCenter
+                                                            } else {
+                                                                draggedCenter < targetCenter
                                                             }
-                                                        if (target != null &&
-                                                            kotlin.math.abs(target.offset + target.size / 2f - draggedCenter) > target.size * 0.42f
-                                                        ) {
-                                                            val fromIndex = queueItems.indexOfFirst { it.key == entry.key }
-                                                            val toIndex = target.index
-                                                            if (fromIndex >= 0 && toIndex in queueItems.indices && fromIndex != toIndex) {
-                                                                draggedQueueOffset = draggedCenter -
-                                                                    (target.offset + draggedInfo.size / 2f)
-                                                                moveQueueEntry(fromIndex, toIndex)
+                                                            if (crossed) {
+                                                                // Dragged row lands in the target's slot; keep it visually in place.
+                                                                draggedQueueOffset = draggedInfo.offset + draggedQueueOffset - target.offset
+                                                                moveQueueEntry(draggedInfo.index, target.index)
                                                             }
                                                         }
                                                     }
