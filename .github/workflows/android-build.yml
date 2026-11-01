@@ -50,7 +50,7 @@ jobs:
           exit $status
 
       - name: Upload debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: luna-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
@@ -58,7 +58,7 @@ jobs:
           retention-days: 14
 
       - name: Upload signed release APK (smooth, install this one)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: luna-release-apk
           path: app/build/outputs/apk/release/app-release.apk
