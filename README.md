@@ -1,63 +1,126 @@
+<div align="center">
+
+<img src="app/src/main/res/drawable-nodpi/luna_brand_logo.png" width="132" alt="LUNA logo">
+
 # LUNA 🌙
+
 **Music, in another dimension.**
 
-A native, offline-first Android music player built with Kotlin and Jetpack Compose.
+*A glassy, colour-shifting, offline-first music player for the songs already on your Android phone.*
 
-## Download
-Grab the latest signed APK from the [Releases page](https://github.com/Lunatic5202/Luna/releases/latest) and open it on your Android phone (Android 8.0+).
+[**Download**](#-download) &nbsp;•&nbsp; [**Screenshots**](#-showcase) &nbsp;•&nbsp; [**Features**](#-features) &nbsp;•&nbsp; [**Build**](#-build-from-source) &nbsp;•&nbsp; [**Under the hood**](#-under-the-hood)
 
-1. Download `LUNA-vX.Y.Z.apk` from the newest release.
+<br>
+
+[![Latest release](https://img.shields.io/github/v/release/Lunatic5202/Luna?style=for-the-badge&labelColor=0E0B14&color=D2B5FF)](https://github.com/Lunatic5202/Luna/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Lunatic5202/Luna/total?style=for-the-badge&labelColor=0E0B14&color=FFB5D2)](https://github.com/Lunatic5202/Luna/releases)
+[![Stars](https://img.shields.io/github/stars/Lunatic5202/Luna?style=for-the-badge&labelColor=0E0B14&color=D2B5FF)](https://github.com/Lunatic5202/Luna/stargazers)
+[![Build](https://img.shields.io/github/actions/workflow/status/Lunatic5202/Luna/android-build.yml?style=for-the-badge&labelColor=0E0B14&color=FFB5D2&label=build)](https://github.com/Lunatic5202/Luna/actions/workflows/android-build.yml)
+
+![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white&labelColor=0E0B14)
+![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-D2B5FF?style=for-the-badge&logo=kotlin&logoColor=white&labelColor=0E0B14)
+![Media3](https://img.shields.io/badge/AndroidX-Media3-FFB5D2?style=for-the-badge&logo=android&logoColor=white&labelColor=0E0B14)
+
+</div>
+
+---
+
+## 📸 Showcase
+
+<table align="center">
+  <tr>
+    <td align="center"><img src="docs/screenshots/library.jpg" width="200" alt="Library"><br><sub><b>Library</b><br>mood tag + aurora</sub></td>
+    <td align="center"><img src="docs/screenshots/player.jpg" width="200" alt="Now playing"><br><sub><b>Now playing</b><br>live visualizer dome</sub></td>
+    <td align="center"><img src="docs/screenshots/lyrics.jpg" width="200" alt="Lyrics"><br><sub><b>Synced lyrics</b><br>line by line</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/cd-stack.jpg" width="200" alt="CD stack"><br><sub><b>CD stack</b><br>hold the art to browse</sub></td>
+    <td align="center"><img src="docs/screenshots/combos.jpg" width="200" alt="Combos"><br><sub><b>Combos</b><br>your playlists</sub></td>
+    <td align="center"><img src="docs/screenshots/about.jpg" width="200" alt="About"><br><sub><b>About</b><br>liquid glass cards</sub></td>
+  </tr>
+</table>
+
+---
+
+## ✨ Features
+
+<table>
+  <tr>
+    <td valign="top" width="33%">
+      <h3>🎧 Playback</h3>
+      Background playback with notification and lock-screen controls, headset buttons, shuffle, repeat (off / all / one), a reorderable queue, auto-pause when headphones disconnect, and bad files skipped instead of stalling.
+    </td>
+    <td valign="top" width="33%">
+      <h3>💿 CD stack</h3>
+      Press and hold the artwork and your previous and upcoming tracks fan out like a stack of CDs. Slide to one, let go, and it plays.
+    </td>
+    <td valign="top" width="33%">
+      <h3>🌈 Vibes</h3>
+      Every track gets a mood from its album art (EMBER, OCEAN, NEON, MONO&hellip;) with CALM, GROOVY or ENERGETIC energy. The whole app and a slow aurora behind your library shift colour with the song.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <h3>📊 Visualizer</h3>
+      A spectrum ring around the player dome dances to your music in real time. It only reads LUNA's own audio, and falls back to a synthetic beat if you skip the microphone permission.
+    </td>
+    <td valign="top">
+      <h3>🎤 Lyrics</h3>
+      Full-screen synced lyrics that follow the song, cached on your device with smart expiry so repeat views are instant.
+    </td>
+    <td valign="top">
+      <h3>🎚️ Equalizer</h3>
+      Vertical band sliders with a live response curve, 14 built-in presets, your own saved profiles and your device's own presets.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <h3>📚 Library</h3>
+      Fast MediaStore scan, search across title, artist and album, Tracks / Artists / Albums views, sorting, and Combos: playlists made your way.
+    </td>
+    <td valign="top">
+      <h3>🫧 Liquid glass</h3>
+      Refracting, frosted glass surfaces tinted by the album art, with a specular highlight that follows your phone's tilt.
+    </td>
+    <td valign="top">
+      <h3>🌙 Startup</h3>
+      A black splash, then the moon blooms in, a gradient ring sweeps around it and LUNA dissolves into your library.
+    </td>
+  </tr>
+</table>
+
+---
+
+## 📥 Download
+
+<div align="center">
+
+[![Download latest APK](https://img.shields.io/badge/Download-Latest%20APK-D2B5FF?style=for-the-badge&logo=android&logoColor=0E0B14&labelColor=FFB5D2)](https://github.com/Lunatic5202/Luna/releases/latest)
+[![Auto-updates with Obtainium](https://img.shields.io/badge/Auto--updates-Obtainium-FFB5D2?style=for-the-badge&labelColor=0E0B14)](https://obtainium.imranr.dev/)
+
+</div>
+
+1. Download `LUNA-vX.Y.Z.apk` from the [latest release](https://github.com/Lunatic5202/Luna/releases/latest) on your Android phone (Android 8.0+).
 2. Open it and allow installs from your browser or file manager if Android asks.
-3. If Play Protect says "unrecognized app", tap **More details → Install anyway**. LUNA is open source and every release is signed with the same developer key, so updates install straight over the previous version.
+3. If Play Protect says *"unrecognized app"*, tap **More details → Install anyway**. LUNA is open source and every release is signed with the same developer key, so updates install straight over the previous version.
 
-Want automatic updates? Add `https://github.com/Lunatic5202/Luna` to [Obtainium](https://obtainium.imranr.dev/) and it will install each new release for you.
+> [!TIP]
+> Want automatic updates? Add `https://github.com/Lunatic5202/Luna` to [Obtainium](https://obtainium.imranr.dev/) and it installs each new release for you.
 
-On first launch LUNA asks for your music library (required), the microphone (so the visualizer can react to the music; LUNA never records your voice) and notifications (playback controls on the lock screen). Only the library is required.
+**Permissions on first launch**
 
-## Screenshots
-<p align="center">
-  <img src="docs/screenshots/library.jpg" width="190" alt="Library with mood tag">
-  <img src="docs/screenshots/player.jpg" width="190" alt="Now playing with visualizer dome">
-  <img src="docs/screenshots/lyrics.jpg" width="190" alt="Synced lyrics">
-</p>
-<p align="center">
-  <img src="docs/screenshots/cd-stack.jpg" width="190" alt="Hold artwork to browse the queue as a stack of CDs">
-  <img src="docs/screenshots/combos.jpg" width="190" alt="Creating a combo playlist">
-  <img src="docs/screenshots/about.jpg" width="190" alt="About page">
-</p>
+| Permission | Why | Required |
+| --- | --- | :---: |
+| Music library | Find and play the audio stored on your phone | ✅ |
+| Microphone | Lets the visualizer react to the music. It only reads LUNA's own audio; your voice is never recorded | optional |
+| Notifications | Playback controls in the notification shade and on the lock screen | optional |
 
-## Features
-- Local audio discovery through MediaStore (scanned off the UI thread)
-- Android audio permission flow
-- Media3 ExoPlayer owned by a dedicated `MediaSessionService`
-- MediaController connection from the Compose Activity
-- System media session integration for playback notification, lock-screen and headset controls
-- Track metadata and artwork URI supplied to the media session
-- Album-art palette extraction with bounded thumbnail decoding
-- Bounded LRU palette cache with synchronized extraction
-- Animated adaptive colour transitions and semantic Material 3 colours
-- Haze-backed frosted-glass surfaces with album-tinted blur, translucent fills, noise, and reflective edge highlights
-- Compose liquid-glass surfaces for the mini-player and fullscreen controls, with adaptive album tint and a blur fallback
-- Blurred album-art ambience behind the Now Playing screen
-- Animated library/player screen transitions
-- Full-screen Now Playing UI with seek progress, duration, and playback controls
-- Full-screen lyrics view with artist metadata, synced-lyrics support, and a blurred animated artwork backdrop
-- Lyrics results cached on-device with expiry, while temporary lookup failures remain retryable
-- Library search across track, artist, and album metadata; Tracks, Artists, and Albums views with title, artist, and album sorting
-- Live audio visualizer around the player dome: real frequency data when the microphone permission is granted, a synthetic beat otherwise
-- Vibes: every track gets a mood tag from its artwork (EMBER, OCEAN, NEON, MONO... with CALM, GROOVY or ENERGETIC) and a slow drifting aurora behind the library in the album's colours
-- Animated startup: a black splash, then the moon blooms in with a sweeping ring and wordmark
-- Session queue sheet with direct track selection
-- Shuffle and repeat-off / repeat-all / repeat-one controls
-- Device-backed equalizer with vertical band sliders and a live response curve
-- Equalizer profiles: 14 built-in presets, your own saved custom profiles (save, update, rename, delete) and the device's own presets
-- Tilt-reactive glass highlight: surfaces catch a specular rim that follows the device's gravity sensor
-- Hold the fullscreen artwork to peek the previous and next tracks, slide to one and release to play it
-- Local playlist combos, a swipe-open navigation drawer, and an About page
+**Privacy:** your library and combos stay on your device. Lyrics lookups send only the song title, artist and album to [LRCLIB](https://lrclib.net) (and lyrics.ovh as a fallback). Audio files are never uploaded.
 
-See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the device and release review steps.
+---
 
-## Build
+## 🛠 Build from source
+
 - Android Studio with Android SDK 36
 - JDK 17
 - Run `./gradlew :app:assembleDebug` (Windows: `gradlew.bat :app:assembleDebug`). The checked-in Gradle wrapper pins Gradle 8.13 and verifies its SHA-256 checksum.
@@ -72,7 +135,14 @@ To publish a release, create a tag such as `v0.2.0` (from the GitHub Releases pa
 
 First build requires internet for Gradle dependencies. Lyrics are looked up on demand through LRCLIB, with lyrics.ovh as a fallback, using track metadata only; music playback and library scanning stay on device.
 
-## Architecture notes
+---
+
+## 🔬 Under the hood
+
+<details>
+<summary><b>Architecture notes</b></summary>
+<br>
+
 - `MainActivity` owns UI state and connects to `LunaPlaybackService` through a Media3 `MediaController`. It does not own or release the player.
 - `LunaPlaybackService` owns the ExoPlayer and MediaSession independently of the Activity lifecycle. Media3 supplies the system media notification and session controls while playback is active.
 - `MusicRepository` queries MediaStore on `Dispatchers.IO`; the Activity collects the result asynchronously.
@@ -86,7 +156,12 @@ First build requires internet for Gradle dependencies. Lyrics are looked up on d
 - `LunaAurora` draws the library's drifting colour wash entirely in the draw phase, so it never triggers recomposition.
 - MediaStore album-art URIs may be missing on some devices; LUNA falls back to a default palette.
 
-## Roadmap
+</details>
+
+<details>
+<summary><b>Roadmap</b></summary>
+<br>
+
 - [x] MediaSessionService and MediaController foundation
 - [x] System media-session metadata and playback controls
 - [x] Asynchronous local library scan
@@ -106,6 +181,20 @@ First build requires internet for Gradle dependencies. Lyrics are looked up on d
 - [x] Signed release builds published to GitHub Releases
 - [ ] Instrumentation tests, device validation and release polish
 
-## Stack
-Kotlin · Jetpack Compose · Material 3 · AndroidX Media3 · AndroidX Palette · Haze
+</details>
 
+**Stack:** Kotlin · Jetpack Compose · Material 3 · AndroidX Media3 · AndroidX Palette · Haze · Backdrop (liquid glass)
+
+---
+
+## 💜 Credits
+
+- Liquid-glass surfaces use the Compose Backdrop library; the tilt-reactive highlight is inspired by [QWEA0/Liquid-Glass-Android](https://github.com/QWEA0/Liquid-Glass-Android) (MIT).
+- Lyrics from [LRCLIB](https://lrclib.net) and [lyrics.ovh](https://lyrics.ovh).
+- Startup wordmark set in [Josefin Sans](https://fonts.google.com/specimen/Josefin+Sans) (SIL Open Font License); app text in [Manrope](https://fonts.google.com/specimen/Manrope).
+
+<div align="center">
+
+<sub>Built with 🌙 by <b>Lunatic</b> &nbsp;·&nbsp; If LUNA makes your music nicer, a ⭐ means a lot.</sub>
+
+</div>
