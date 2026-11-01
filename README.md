@@ -71,3 +71,16 @@ First build requires internet for Gradle dependencies. Music playback itself is 
 ## Stack
 Kotlin · Jetpack Compose · Material 3 · AndroidX Media3 · AndroidX Palette · Haze
 
+
+
+## Release builds
+- `gradle :app:assembleRelease` produces an R8-minified, resource-shrunk APK. It is unsigned unless signing is configured.
+- Signing reads `LUNA_KEYSTORE_PATH`, `LUNA_KEYSTORE_PASSWORD`, `LUNA_KEY_ALIAS` and `LUNA_KEY_PASSWORD` from the environment, or `lunaKeystorePath`, `lunaKeystorePassword`, `lunaKeyAlias` and `lunaKeyPassword` from `~/.gradle/gradle.properties`. Never commit a keystore.
+- CI signs automatically when the repository secrets `LUNA_KEYSTORE_BASE64` (base64 of the `.jks`), `LUNA_KEYSTORE_PASSWORD`, `LUNA_KEY_ALIAS` and `LUNA_KEY_PASSWORD` exist, and uploads `luna-release-apk`.
+- `versionCode` comes from the CI run number; bump `versionName` in `app/build.gradle.kts` for each release.
+- Run the unit tests with `gradle :app:testDebugUnitTest`.
+
+## Permissions
+- **Music and audio** (required): reads your local library.
+- **Notifications** (Android 13+): asked once, the first time playback starts, so the player notification can appear.
+- **Microphone** (optional): only requested if you turn on the live visualizer from the player. It reads LUNA's own audio output, never your voice. Without it the visualizer uses a simulated animation.

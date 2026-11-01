@@ -5,7 +5,15 @@ package com.luna.music
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
+import android.util.Log
+import android.widget.Toast
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -71,13 +79,13 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
-import com.luna.music.data.MusicRepository
 import com.luna.music.data.ComboRepository
 import com.luna.music.data.MusicCombo
 import com.luna.music.data.Track
@@ -98,37 +106,68 @@ import com.luna.music.ui.LocalLunaHazeState
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 
+private const val TAG = "LunaMain"
 private val Muted = Color(0xFFAAA7BA)
 
-private enum class LunaSection { Library, Equalizer, Combos, About }
+internal enum class LunaSection { Library, Equalizer, Combos, About }
 
 class MainActivity : ComponentActivity() {
     private var mediaController: MediaController? = null
     private var controllerFuture: ListenableFuture<MediaController>? = null
-    private lateinit var repository: MusicRepository
     private lateinit var comboRepository: ComboRepository
     private lateinit var themeEngine: LunaThemeEngine
-    private var tracks by mutableStateOf<List<Track>>(emptyList())
+    private val library: LibraryViewModel by viewModels()
+    private val tracks: List<Track> get() = library.tracks
     private var selectedTrack by mutableStateOf<Track?>(null)
     private var isPlaying by mutableStateOf(false)
     private var permissionGranted by mutableStateOf(false)
     private var currentPalette by mutableStateOf(AlbumPalette.Fallback)
     private var paletteLoadToken = 0
-    private var showNowPlaying by mutableStateOf(false)
-    private var currentSection by mutableStateOf(LunaSection.Library)
+    private var permissionBlocked by mutableStateOf(false)
+    private var showNowPlaying: Boolean
+        get() = library.showNowPlaying
+        set(value) { library.showNowPlaying = value }
+    private var currentSection: LunaSection
+        get() = library.currentSection
+        set(value) { library.currentSection = value }
     private var combos by mutableStateOf<List<MusicCombo>>(emptyList())
 
-    private fun loadLibrary() {
-        lifecycleScope.launch {
-            tracks = repository.loadTracks()
-            // The session may reconnect before the local library scan finishes.
-            mediaController?.currentMediaItem?.let { item ->
-                tracks.firstOrNull { it.id.toString() == item.mediaId }?.let { track ->
-                    selectedTrack = track
-                    updatePaletteFor(track)
-                }
-            }
+    private val permission: String
+        get() = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
+                else Manifest.permission.READ_EXTERNAL_STORAGE
+
+    private fun hasLibraryPermission() =
+        ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+
+    /** Mirrors whatever the playback service is currently playing into the UI. */
+    private fun syncSelectionFromController() {
+        val item = mediaController?.currentMediaItem ?: return
+        val track = tracks.firstOrNull { it.id.toString() == item.mediaId } ?: return
+        if (selectedTrack?.id != track.id) {
+            selectedTrack = track
+            updatePaletteFor(track)
         }
+    }
+
+    private fun openAppSettings() {
+        startActivity(
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null))
+        )
+    }
+
+    private val notificationLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
+    /** Asked once, the first time playback starts, so the prompt has context. */
+    private fun maybeAskNotificationPermission() {
+        if (Build.VERSION.SDK_INT < 33) return
+        val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        if (granted) return
+        val prefs = getSharedPreferences("luna_app", MODE_PRIVATE)
+        if (prefs.getBoolean("asked_notifications", false)) return
+        prefs.edit().putBoolean("asked_notifications", true).apply()
+        notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     private fun updatePaletteFor(track: Track?) {
@@ -142,20 +181,28 @@ class MainActivity : ComponentActivity() {
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             permissionGranted = granted
-            if (granted) loadLibrary()
+            // After a denial, no rationale means Android won't show the dialog again, so the
+            // only way forward is the system settings page.
+            permissionBlocked = !granted && !shouldShowRequestPermissionRationale(permission)
+            if (granted) library.refresh(force = true)
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        )
         super.onCreate(savedInstanceState)
-        repository = MusicRepository(this)
         comboRepository = ComboRepository(this)
         combos = comboRepository.load()
         themeEngine = LunaThemeEngine(this)
 
-        val permission = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
-                         else Manifest.permission.READ_EXTERNAL_STORAGE
-        permissionGranted = ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
-        if (permissionGranted) loadLibrary()
+        permissionGranted = hasLibraryPermission()
+
+        // Once a scan lands, pick up whatever the service is already playing.
+        lifecycleScope.launch {
+            snapshotFlow { library.tracks }.collect { syncSelectionFromController() }
+        }
 
         val sessionToken = SessionToken(
             this,
@@ -164,10 +211,24 @@ class MainActivity : ComponentActivity() {
         controllerFuture = MediaController.Builder(this, sessionToken).buildAsync().also { future ->
             future.addListener({
                 if (isFinishing || isDestroyed) return@addListener
-                mediaController = future.get()
+                mediaController = try {
+                    future.get()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not connect to the playback service", e)
+                    return@addListener
+                }
                 mediaController?.addListener(object : Player.Listener {
                     override fun onIsPlayingChanged(isPlayingNow: Boolean) {
                         isPlaying = isPlayingNow
+                        if (isPlayingNow) maybeAskNotificationPermission()
+                    }
+
+                    override fun onPlayerError(error: PlaybackException) {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Couldn't play that file, skipping",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
 
                     override fun onMediaItemTransition(
@@ -179,12 +240,8 @@ class MainActivity : ComponentActivity() {
                         updatePaletteFor(track)
                     }
                 })
-                mediaController?.currentMediaItem?.let { item ->
-                    tracks.firstOrNull { it.id.toString() == item.mediaId }?.let { track ->
-                        selectedTrack = track
-                        updatePaletteFor(track)
-                    }
-                }
+                mediaController?.let { isPlaying = it.isPlaying }
+                syncSelectionFromController()
             }, ContextCompat.getMainExecutor(this))
         }
 
@@ -229,7 +286,9 @@ class MainActivity : ComponentActivity() {
                 if (!granted) {
                     LunaPermissionIntro(
                         palette = animatedPalette,
-                        requestPermission = { permissionLauncher.launch(permission) }
+                        blocked = permissionBlocked,
+                        requestPermission = { permissionLauncher.launch(permission) },
+                        openSettings = ::openAppSettings
                     )
                 } else {
                 SharedTransitionLayout(
@@ -375,6 +434,15 @@ class MainActivity : ComponentActivity() {
     }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // The user may have changed the permission in Settings while we were backgrounded,
+        // and new files may have been added; both are cheap to re-check.
+        val granted = hasLibraryPermission()
+        if (granted != permissionGranted) permissionGranted = granted
+        if (granted) library.refresh()
+    }
+
     override fun onDestroy() {
         controllerFuture?.let { MediaController.releaseFuture(it) }
         mediaController = null
@@ -385,7 +453,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun LunaPermissionIntro(
     palette: AlbumPalette,
-    requestPermission: () -> Unit
+    blocked: Boolean,
+    requestPermission: () -> Unit,
+    openSettings: () -> Unit
 ) {
     Box(
         Modifier.fillMaxSize().background(
@@ -421,19 +491,24 @@ private fun LunaPermissionIntro(
                 Text("OPTIONAL", color = palette.secondary, fontSize = 10.sp,
                     letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(10.dp))
-                Text("Playback visualizer", color = palette.onBackground,
+                Text("Live visualizer", color = palette.onBackground,
                     fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                Text("Android may show a microphone permission. It is used only to read this player's audio session; LUNA does not record your voice.",
+                Text("Off by default. If you turn it on from the player, Android asks for microphone access. It only reads LUNA's own audio and never records you.",
                     color = palette.onBackground.copy(alpha = .58f), fontSize = 13.sp)
             }
-            Spacer(Modifier.height(34.dp))
+            if (blocked) {
+                Spacer(Modifier.height(20.dp))
+                Text("Music access is turned off. Open Settings, then allow Music and audio for LUNA.",
+                    color = palette.secondary, fontSize = 13.sp)
+            }
+            Spacer(Modifier.height(if (blocked) 18.dp else 34.dp))
             Button(
-                onClick = requestPermission,
+                onClick = if (blocked) openSettings else requestPermission,
                 modifier = Modifier.fillMaxWidth().height(54.dp).staggeredEntrance(4, 110),
                 shape = RoundedCornerShape(18.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = palette.primary)
             ) {
-                Text("Continue", color = Color.White, fontWeight = FontWeight.SemiBold)
+                Text(if (blocked) "Open settings" else "Continue", color = Color.White, fontWeight = FontWeight.SemiBold)
             }
         }
     }

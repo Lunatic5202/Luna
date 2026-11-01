@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-bar glyph: system tints it, so it must be a single flat colour. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="56"
+    android:viewportHeight="56">
+    <group android:translateX="-26" android:translateY="-26">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M51.875,30.093 A24,24 0 1 0 76.857,61.321 A20,20 0 1 1 51.875,30.093 Z" />
+    </group>
+</vector>

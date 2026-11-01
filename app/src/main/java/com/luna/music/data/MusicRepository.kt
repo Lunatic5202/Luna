@@ -86,17 +86,6 @@ class MusicRepository(private val context: Context) {
         result
     }
 
-    private fun isGenericAudioLabel(value: String): Boolean {
-        val normalized = value.substringBeforeLast('.', value)
-            .trim()
-            .lowercase(Locale.ROOT)
-        // MediaStore sometimes exposes recordings/cache entries as AUD-... or AUDIO-...
-        return normalized == "aud" || normalized == "audio" ||
-            normalized.startsWith("aud-") || normalized.startsWith("aud_") ||
-            normalized.startsWith("aud ") || normalized.startsWith("audio-") ||
-            normalized.startsWith("audio_") || normalized.startsWith("audio ")
-    }
-
     private fun hasRecognizedAudioSignature(uri: Uri, mime: String): Boolean {
         return try {
             val header = context.contentResolver.openInputStream(uri)?.use { input ->
@@ -109,24 +98,37 @@ class MusicRepository(private val context: Context) {
                     }
                 }
             } ?: return false
-
-            val ascii = header.toString(Charsets.ISO_8859_1)
-            when (mime) {
-                "audio/flac" -> ascii.startsWith("fLaC")
-                "audio/ogg", "audio/opus" -> ascii.startsWith("OggS")
-                "audio/wav", "audio/x-wav" -> ascii.startsWith("RIFF") && ascii.substring(8, 12) == "WAVE"
-                "audio/mp4", "audio/x-m4a", "audio/alac" -> ascii.substring(4, 8) == "ftyp"
-                "audio/aac" -> header.size >= 2 && header[0] == 0xFF.toByte() &&
-                    (header[1].toInt() and 0xF6) == 0xF0
-                "audio/mpeg", "audio/mp3" -> ascii.startsWith("ID3") ||
-                    (header.size >= 2 && header[0] == 0xFF.toByte() &&
-                        (header[1].toInt() and 0xE0) == 0xE0)
-                "audio/3gpp", "audio/amr" -> ascii.startsWith("#!AMR") ||
-                    ascii.substring(4, 8) == "ftyp"
-                else -> false
-            }
+            matchesAudioSignature(header, mime)
         } catch (_: Exception) {
             false
         }
+    }
+}
+
+/** MediaStore sometimes exposes recordings/cache entries as AUD-... or AUDIO-... */
+internal fun isGenericAudioLabel(value: String): Boolean {
+    val normalized = value.substringBeforeLast('.', value)
+        .trim()
+        .lowercase(Locale.ROOT)
+    return normalized == "aud" || normalized == "audio" ||
+        normalized.startsWith("aud-") || normalized.startsWith("aud_") ||
+        normalized.startsWith("aud ") || normalized.startsWith("audio-") ||
+        normalized.startsWith("audio_") || normalized.startsWith("audio ")
+}
+
+/** True when the first bytes of a file look like the container its MIME type claims. */
+internal fun matchesAudioSignature(header: ByteArray, mime: String): Boolean {
+    if (header.size < 12) return false
+    val ascii = header.toString(Charsets.ISO_8859_1)
+    return when (mime) {
+        "audio/flac" -> ascii.startsWith("fLaC")
+        "audio/ogg", "audio/opus" -> ascii.startsWith("OggS")
+        "audio/wav", "audio/x-wav" -> ascii.startsWith("RIFF") && ascii.substring(8, 12) == "WAVE"
+        "audio/mp4", "audio/x-m4a", "audio/alac" -> ascii.substring(4, 8) == "ftyp"
+        "audio/aac" -> header[0] == 0xFF.toByte() && (header[1].toInt() and 0xF6) == 0xF0
+        "audio/mpeg", "audio/mp3" -> ascii.startsWith("ID3") ||
+            (header[0] == 0xFF.toByte() && (header[1].toInt() and 0xE0) == 0xE0)
+        "audio/3gpp", "audio/amr" -> ascii.startsWith("#!AMR") || ascii.substring(4, 8) == "ftyp"
+        else -> false
     }
 }

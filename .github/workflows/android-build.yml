@@ -10,9 +10,19 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   assemble:
     runs-on: ubuntu-latest
+    env:
+      # Optional. Without these secrets the release build is produced unsigned.
+      LUNA_KEYSTORE_BASE64: ${{ secrets.LUNA_KEYSTORE_BASE64 }}
+      LUNA_KEYSTORE_PASSWORD: ${{ secrets.LUNA_KEYSTORE_PASSWORD }}
+      LUNA_KEY_ALIAS: ${{ secrets.LUNA_KEY_ALIAS }}
+      LUNA_KEY_PASSWORD: ${{ secrets.LUNA_KEY_PASSWORD }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -28,13 +38,29 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Assemble debug APK
+      - name: Restore release keystore
+        if: env.LUNA_KEYSTORE_BASE64 != ''
+        run: |
+          echo "$LUNA_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/luna.jks"
+          echo "LUNA_KEYSTORE_PATH=$RUNNER_TEMP/luna.jks" >> "$GITHUB_ENV"
+
+      - name: Test, assemble debug and release
         run: |
           set +e
-          gradle :app:assembleDebug --console=plain > build.log 2>&1
+          gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease \
+            --console=plain > build.log 2>&1
           status=$?
-          msg=$(grep -E '^e: ' build.log | head -45 | sed 's/^e: file:\/\/\/home\/runner\/work\/[^/]*\/[^/]*\///' | sed 's/$/%0A/' | tr -d '\n')
-          echo "::error title=Kotlin errors::${msg}"
+          if [ $status -ne 0 ]; then
+            # Surface compiler errors as annotations; fall back to the log tail for
+            # failures that aren't Kotlin errors (R8, resources, tests).
+            msg=$(grep -E '^e: ' build.log | head -45 \
+              | sed 's/^e: file:\/\/\/home\/runner\/work\/[^/]*\/[^/]*\///' \
+              | sed 's/$/%0A/' | tr -d '\n')
+            if [ -z "$msg" ]; then
+              msg=$(tail -40 build.log | sed 's/$/%0A/' | tr -d '\n')
+            fi
+            echo "::error title=Build failed::${msg}"
+          fi
           exit $status
 
       - name: Upload debug APK
@@ -44,3 +70,21 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload signed release APK
+        if: env.LUNA_KEYSTORE_BASE64 != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: luna-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload test report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: luna-test-report
+          path: app/build/reports/tests
+          if-no-files-found: ignore
+          retention-days: 7

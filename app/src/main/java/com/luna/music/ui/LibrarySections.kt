@@ -225,7 +225,7 @@ fun AboutScreen(palette: AlbumPalette, openDrawer: () -> Unit) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("L U N A", color = palette.onBackground, fontSize = 25.sp, fontWeight = FontWeight.Black, letterSpacing = 4.sp)
                 Text("Built by Lunatic", color = palette.onBackground, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                Text("Version 0.1.0", color = palette.onBackground.copy(alpha = 0.78f), fontSize = 13.sp)
+                Text("Version ${androidx.compose.ui.platform.LocalContext.current.let { c -> runCatching { c.packageManager.getPackageInfo(c.packageName, 0).versionName }.getOrNull() }.orEmpty()}", color = palette.onBackground.copy(alpha = 0.78f), fontSize = 13.sp)
                 Text("An offline-first music player for songs stored on your Android device.", color = palette.onBackground.copy(alpha = 0.88f), fontSize = 14.sp)
             }
         }

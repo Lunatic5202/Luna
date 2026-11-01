@@ -12,8 +12,39 @@ android {
         applicationId = "com.luna.music"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        // CI supplies a monotonically increasing build number; local builds stay at 1.
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionName = "1.0.0"
+    }
+
+    // Signing secrets come from the environment (CI) or ~/.gradle/gradle.properties and are
+    // never committed. Without them the release build is simply left unsigned.
+    val keystorePath = System.getenv("LUNA_KEYSTORE_PATH")
+        ?: providers.gradleProperty("lunaKeystorePath").orNull
+    fun secret(env: String, prop: String) =
+        System.getenv(env) ?: providers.gradleProperty(prop).orNull
+
+    signingConfigs {
+        if (keystorePath != null) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = secret("LUNA_KEYSTORE_PASSWORD", "lunaKeystorePassword")
+                keyAlias = secret("LUNA_KEY_ALIAS", "lunaKeyAlias")
+                keyPassword = secret("LUNA_KEY_PASSWORD", "lunaKeyPassword")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            signingConfig = signingConfigs.findByName("release")
+        }
     }
 
     buildFeatures { compose = true }
@@ -47,5 +78,7 @@ dependencies {
     implementation("dev.chrisbanes.haze:haze:1.6.10")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    testImplementation("junit:junit:4.13.2")
 }
 
