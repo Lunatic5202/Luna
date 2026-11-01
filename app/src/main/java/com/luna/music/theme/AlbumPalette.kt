@@ -8,8 +8,19 @@ data class AlbumPalette(
     val primary: Color,
     val secondary: Color,
     val glow: Color,
-    val onBackground: Color = Color(0xFFF5F6F8)
+    val onBackground: Color = Color(0xFFF5F6F8),
+    /** Third colour for ambient effects, an analogous hue to [primary]. */
+    val accent: Color = secondary,
+    /** 0..1: how lively the artwork feels. Drives how far the ambient aurora drifts. */
+    val energy: Float = 0.5f,
+    /** Short mood name derived from the artwork hue, e.g. EMBER or OCEAN. */
+    val vibeName: String = "TWILIGHT",
+    /** CALM, GROOVY or ENERGETIC. Kept separate from [energy] so labels don't flicker mid-fade. */
+    val vibeLevel: String = "CALM"
 ) {
+    /** e.g. "EMBER · ENERGETIC" */
+    fun vibeLabel(): String = "$vibeName · $vibeLevel"
+
     /** Shared secondary text color for use across every screen. */
     val muted: Color get() = onBackground.copy(alpha = 0.72f)
 

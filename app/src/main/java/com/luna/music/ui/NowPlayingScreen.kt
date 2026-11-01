@@ -350,7 +350,7 @@ fun NowPlayingScreen(
                     Modifier.align(Alignment.Center).padding(horizontal = 56.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("PLAYING", color = palette.secondary, fontSize = 10.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Medium)
+                    Text("PLAYING · ${palette.vibeName}", color = palette.secondary, fontSize = 10.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Medium)
                     Text(track.album.ifBlank { "YOUR LIBRARY" }, color = palette.onBackground.copy(alpha = .65f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 IconButton(onClick = { showLyrics = true }, modifier = Modifier.align(Alignment.CenterEnd)) {

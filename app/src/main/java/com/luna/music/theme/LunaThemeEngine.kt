@@ -4,9 +4,12 @@ import android.content.Context
 import android.net.Uri
 import android.util.LruCache
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -42,12 +45,27 @@ class LunaThemeEngine(context: Context) {
 
 @Composable
 fun rememberLunaPalette(target: AlbumPalette): AlbumPalette {
-    val background by animateColorAsState(target.background, tween(850), label = "luna-bg")
-    val surface by animateColorAsState(target.surface, tween(850), label = "luna-surface")
-    val primary by animateColorAsState(target.primary, tween(850), label = "luna-primary")
-    val secondary by animateColorAsState(target.secondary, tween(850), label = "luna-secondary")
-    val glow by animateColorAsState(target.glow, tween(850), label = "luna-glow")
-    val onBackground by animateColorAsState(target.onBackground, tween(850), label = "luna-on-bg")
+    // A long eased cross-fade makes a track change feel like the room's mood shifting.
+    val spec = tween<Color>(1100, easing = FastOutSlowInEasing)
+    val background by animateColorAsState(target.background, spec, label = "luna-bg")
+    val surface by animateColorAsState(target.surface, spec, label = "luna-surface")
+    val primary by animateColorAsState(target.primary, spec, label = "luna-primary")
+    val secondary by animateColorAsState(target.secondary, spec, label = "luna-secondary")
+    val glow by animateColorAsState(target.glow, spec, label = "luna-glow")
+    val onBackground by animateColorAsState(target.onBackground, spec, label = "luna-on-bg")
+    val accent by animateColorAsState(target.accent, spec, label = "luna-accent")
+    val energy by animateFloatAsState(target.energy, tween(1200), label = "luna-energy")
 
-    return AlbumPalette(background, surface, primary, secondary, glow, onBackground)
+    return AlbumPalette(
+        background = background,
+        surface = surface,
+        primary = primary,
+        secondary = secondary,
+        glow = glow,
+        onBackground = onBackground,
+        accent = accent,
+        energy = energy,
+        vibeName = target.vibeName,
+        vibeLevel = target.vibeLevel
+    )
 }
