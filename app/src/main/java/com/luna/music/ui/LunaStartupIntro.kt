@@ -34,6 +34,10 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,6 +56,24 @@ internal object StartupIntroState {
 private val IntroCyan = Color(0xFF3CD7FF)
 private val IntroGold = Color(0xFFFFC857)
 private val IntroCoral = Color(0xFFFF6B8A)
+
+/**
+ * Josefin Sans (SIL OFL) is bundled in res/font so the wordmark is right on the very first
+ * frame, with no font download. One variable file covers both weights.
+ */
+@OptIn(ExperimentalTextApi::class)
+private val IntroFont = FontFamily(
+    Font(
+        R.font.josefin_sans,
+        weight = FontWeight.Light,
+        variationSettings = FontVariation.Settings(FontVariation.weight(300))
+    ),
+    Font(
+        R.font.josefin_sans,
+        weight = FontWeight.Normal,
+        variationSettings = FontVariation.Settings(FontVariation.weight(400))
+    )
+)
 
 private val LOGO_SIZE = 150.dp
 private val STAGE_SIZE = 300.dp
@@ -173,9 +195,10 @@ fun LunaStartupIntro(onFinished: () -> Unit) {
             Text(
                 "LUNA",
                 color = Color.White,
-                fontSize = 24.sp,
+                fontFamily = IntroFont,
+                fontSize = 30.sp,
                 fontWeight = FontWeight.Light,
-                letterSpacing = 10.sp,
+                letterSpacing = 14.sp,
                 modifier = Modifier.graphicsLayer {
                     alpha = word.value
                     translationY = (1f - word.value) * 14.dp.toPx()
@@ -185,8 +208,10 @@ fun LunaStartupIntro(onFinished: () -> Unit) {
             Text(
                 "your music, your space",
                 color = Color.White.copy(alpha = 0.55f),
-                fontSize = 12.sp,
-                letterSpacing = 1.5.sp,
+                fontFamily = IntroFont,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal,
+                letterSpacing = 2.sp,
                 modifier = Modifier.graphicsLayer {
                     alpha = (word.value - 0.3f).coerceAtLeast(0f) / 0.7f
                     translationY = (1f - word.value) * 18.dp.toPx()
