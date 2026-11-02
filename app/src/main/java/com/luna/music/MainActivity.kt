@@ -138,7 +138,9 @@ private enum class LibraryView { Tracks, Artists, Albums, Folders, Recent, Top }
 private enum class LibrarySort { Title, Artist, Album }
 private data class LibraryDisplayData(
     val visibleTracks: List<Track>,
-    val groupedTracks: List<Pair<String, List<Track>>>
+    val groupedTracks: List<Pair<String, List<Track>>>,
+    /** The view this data was built for. The list renders by this, never by the (newer) selected chip. */
+    val view: LibraryView = LibraryView.Tracks
 )
 
 class MainActivity : ComponentActivity() {
@@ -687,7 +689,7 @@ private fun LunaHome(
     var showSortMenu by remember { mutableStateOf(false) }
     val libraryView = LibraryView.entries.firstOrNull { it.name == selectedViewName } ?: LibraryView.Tracks
     val librarySort = LibrarySort.entries.firstOrNull { it.name == selectedSortName } ?: LibrarySort.Title
-    var libraryDisplay by remember { mutableStateOf(LibraryDisplayData(tracks, emptyList())) }
+    var libraryDisplay by remember { mutableStateOf(LibraryDisplayData(tracks, emptyList(), libraryView)) }
     LaunchedEffect(tracks, searchQuery, librarySort, libraryView, playCounts) {
         val query = searchQuery.trim()
         libraryDisplay = withContext(Dispatchers.Default) {
@@ -728,7 +730,7 @@ private fun LunaHome(
                     .entries.sortedBy { it.key.lowercase() }
                     .map { it.key to it.value }
             }
-            LibraryDisplayData(ordered, groups)
+            LibraryDisplayData(ordered, groups, libraryView)
         }
     }
     val visibleTracks = libraryDisplay.visibleTracks
@@ -868,9 +870,11 @@ private fun LunaHome(
                     }
                 } else {
                     LazyColumn(Modifier.weight(1f), state = libraryListState, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        when (libraryView) {
+                        // Render by the view the data was computed for. When a chip is tapped the selection
+                        // changes a frame before the new groups arrive, and mixing them crashed the Albums view.
+                        when (libraryDisplay.view) {
                             LibraryView.Tracks, LibraryView.Recent, LibraryView.Top ->
-                              items(visibleTracks, key = { "${libraryView.name}:${it.id}" }) { track ->
+                              items(visibleTracks, key = { "${libraryDisplay.view.name}:${it.id}" }) { track ->
                                 LibraryTrackRow(track, palette, selectedTrack?.id == track.id, playing) { play(it) }
                             }
                             LibraryView.Folders -> groupedTracks.forEach { (folder, folderTracks) ->
@@ -890,7 +894,9 @@ private fun LunaHome(
                                     }
                                 }
                             LibraryView.Albums -> groupedTracks.forEach { (key, albumTracks) ->
-                                val (album, artist) = key.split("\u0000", limit = 2)
+                                val parts = key.split("\u0000", limit = 2)
+                                val album = parts[0]
+                                val artist = parts.getOrElse(1) { "" }
                                 item(key = "album:$key") {
                                     LibraryGroupHeading("$album · $artist · ${albumTracks.size}", palette)
                                 }
