@@ -69,6 +69,7 @@ class LunaPlaybackService : MediaSessionService() {
         // Service and UI share a process, so publish the audio session id directly.
         // (A MediaController cannot read it across the session boundary.)
         _audioSessionId.value = player.audioSessionId
+        LunaSleepTimer.attach(player)
         LunaEqualizerEngine.attach(this, player.audioSessionId)
         player.addAnalyticsListener(object : AnalyticsListener {
             override fun onAudioSessionIdChanged(
@@ -106,6 +107,7 @@ class LunaPlaybackService : MediaSessionService() {
     override fun onDestroy() {
         _audioSessionId.value = 0
         LunaEqualizerEngine.detach()
+        LunaSleepTimer.detach()
         mediaSession?.run {
             player.release()
             release()

@@ -353,6 +353,7 @@ fun NowPlayingScreen(
                     Text("PLAYING · ${palette.vibeName}", color = palette.secondary, fontSize = 10.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Medium)
                     Text(track.album.ifBlank { "YOUR LIBRARY" }, color = palette.onBackground.copy(alpha = .65f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
+                SleepTimerButton(palette, Modifier.align(Alignment.CenterStart))
                 IconButton(onClick = { showLyrics = true }, modifier = Modifier.align(Alignment.CenterEnd)) {
                     Icon(Icons.Default.Lyrics, contentDescription = "Show lyrics", tint = palette.onBackground)
                 }
