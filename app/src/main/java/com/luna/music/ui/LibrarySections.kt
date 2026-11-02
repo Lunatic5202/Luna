@@ -27,6 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -240,7 +241,7 @@ fun AboutScreen(palette: AlbumPalette, openDrawer: () -> Unit) {
                     colored = true
                 )
                 Text("Built by Lunatic", color = palette.onBackground, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
-                Text("Version 0.1.0", color = palette.onBackground.copy(alpha = 0.78f), fontSize = 13.sp, textAlign = TextAlign.Center)
+                Text("Version ${appVersionName()}", color = palette.onBackground.copy(alpha = 0.78f), fontSize = 13.sp, textAlign = TextAlign.Center)
                 Text("An offline-first music player for songs stored on your Android device.", color = palette.onBackground.copy(alpha = 0.88f), fontSize = 14.sp, textAlign = TextAlign.Center)
             }
         }
@@ -254,6 +255,8 @@ fun AboutScreen(palette: AlbumPalette, openDrawer: () -> Unit) {
         AboutInfoCard(palette, "Glass", "Surfaces use the Backdrop library for refraction. The tilt-reactive highlight is inspired by Liquid-Glass-Android by QWEA0 (MIT licence).")
         Spacer(Modifier.height(12.dp))
         AboutInfoCard(palette, "Made for music", "Album artwork colors shape the interface throughout the app, while playback remains local and controlled by Android's media session.")
+        Spacer(Modifier.height(12.dp))
+        GetMusicCard(palette)
         }
     }
 }
@@ -264,6 +267,61 @@ private fun AboutInfoCard(palette: AlbumPalette, title: String, body: String) {
         Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(title, color = palette.onBackground, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             Text(body, color = palette.onBackground.copy(alpha = 0.82f), fontSize = 13.sp, lineHeight = 19.sp)
+        }
+    }
+}
+
+@Composable
+private fun appVersionName(): String {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    return remember {
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }
+            .getOrNull() ?: "0.1.0"
+    }
+}
+
+private data class MusicSource(val name: String, val note: String, val url: String)
+
+private val legalMusicSources = listOf(
+    MusicSource("Bandcamp", "Buy DRM-free downloads straight from artists", "https://bandcamp.com"),
+    MusicSource("Jamendo", "Free, licensed music from independent artists", "https://www.jamendo.com"),
+    MusicSource("Free Music Archive", "Free downloads under open licences", "https://freemusicarchive.org"),
+    MusicSource("Internet Archive", "Public-domain and live recordings", "https://archive.org/details/audio")
+)
+
+/** LUNA plays files on the phone; this points people to places where music can be downloaded legally. */
+@Composable
+private fun GetMusicCard(palette: AlbumPalette) {
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+    LunaGlassSurface(palette, Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth().padding(vertical = 18.dp)) {
+            Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Get music", color = palette.onBackground, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "LUNA plays the files stored on your phone. These sites offer music you can download legally. Check each track's licence.",
+                    color = palette.onBackground.copy(alpha = 0.82f), fontSize = 13.sp, lineHeight = 19.sp
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            legalMusicSources.forEach { source ->
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clickable { runCatching { uriHandler.openUri(source.url) } }
+                        .padding(horizontal = 18.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(source.name, color = palette.onBackground, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text(source.note, color = palette.onBackground.copy(alpha = 0.7f), fontSize = 12.sp)
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Filled.OpenInNew,
+                        contentDescription = "Open ${source.name}",
+                        tint = palette.secondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
         }
     }
 }
