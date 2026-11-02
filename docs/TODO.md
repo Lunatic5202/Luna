@@ -41,6 +41,34 @@ Only check a task after the work is implemented, reviewed, and verified. For dev
 - [ ] Explore export/restore for user-created data.
 - [ ] Continue VIBE ENGINE refinement after performance and reliability work.
 
+
+## New platform — iOS 0.1 Foundation
+
+The iPhone app is a planned native SwiftUI implementation. See [IOS.md](IOS.md) for the complete technical plan and feature parity checklist.
+
+- [ ] Confirm GitHub-hosted macOS runner availability and repository Actions minutes.
+- [ ] Choose Xcode version, runner image, and initial iOS deployment target.
+- [ ] Choose XcodeGen or a checked-in Xcode project and document reproducible generation.
+- [ ] Add the iOS project scaffold and macOS CI workflow.
+- [ ] Prototype Files audio import and persistent folder access with security-scoped URLs.
+- [ ] Prototype synced media-library authorization and document exactly which items are accessible.
+- [ ] Compare playback architecture for imported files and eligible synced library items.
+- [ ] Build the SwiftUI shell, shared LUNA design tokens, and unit-test baseline.
+- [ ] Get a supported audio file playing in the foreground on an iOS Simulator.
+- [ ] Arrange physical Mac/iPhone access for real-device playback and audio-route testing.
+
+## iOS parity backlog — later milestones
+
+- [ ] Library: Songs, Albums, Artists, Folders, search, and sorting.
+- [ ] Playback: queue, shuffle/repeat, playlists, favorites, and persistence.
+- [ ] Background audio, Now Playing, lock-screen/Control Center controls, Bluetooth, and AirPlay.
+- [ ] Artwork pipeline, adaptive palette, and native-feeling Now Playing experience.
+- [ ] Lyrics and local caching.
+- [ ] Playback-signal visualizer without microphone recording.
+- [ ] Equalizer/DSP feasibility and source compatibility matrix.
+- [ ] Sleep timer, settings, accessibility, and reduced-motion support.
+- [ ] Simulator/device regression, TestFlight beta, and App Store release preparation.
+
 ## Working rules
 
 - Prioritize reliability and user-data safety over feature count.
