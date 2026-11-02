@@ -2,6 +2,7 @@ package com.luna.music.data
 
 import android.content.ContentUris
 import android.content.Context
+import android.os.Build
 import android.provider.MediaStore
 import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +30,11 @@ class MusicRepository(private val context: Context) {
             MediaStore.Audio.Media.MIME_TYPE,
             MediaStore.Audio.Media.SIZE,
             MediaStore.Audio.Media.DURATION,
-            MediaStore.Audio.Media.DISPLAY_NAME
+            MediaStore.Audio.Media.DISPLAY_NAME,
+            MediaStore.Audio.Media.DATE_ADDED,
+            // RELATIVE_PATH needs Android 10; older versions expose the full file path instead.
+            if (Build.VERSION.SDK_INT >= 29) MediaStore.Audio.Media.RELATIVE_PATH
+            else @Suppress("DEPRECATION") MediaStore.Audio.Media.DATA
         )
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.SIZE} > 8192 AND ${MediaStore.Audio.Media.DURATION} >= 15000"
         val sortOrder = "${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
@@ -47,6 +52,11 @@ class MusicRepository(private val context: Context) {
                 val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
                 val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
                 val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+                val addedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
+                val pathCol = cursor.getColumnIndexOrThrow(
+                    if (Build.VERSION.SDK_INT >= 29) MediaStore.Audio.Media.RELATIVE_PATH
+                    else @Suppress("DEPRECATION") MediaStore.Audio.Media.DATA
+                )
 
                 var scanned = 0
                 while (cursor.moveToNext()) {
@@ -73,7 +83,9 @@ class MusicRepository(private val context: Context) {
                         artist = artist.ifBlank { "Unknown artist" },
                         album = cursor.getString(albumCol)?.takeIf { it.isNotBlank() } ?: "Unknown album",
                         uri = ContentUris.withAppendedId(collection, id),
-                        artworkUri = if (albumId > 0L) artwork else null
+                        artworkUri = if (albumId > 0L) artwork else null,
+                        dateAdded = cursor.getLong(addedCol),
+                        folder = folderName(cursor.getString(pathCol))
                     )
                 }
             }
@@ -85,6 +97,13 @@ class MusicRepository(private val context: Context) {
             throw error
         }
         result
+    }
+
+    /** "Music/Rock/" (Android 10+) or "/storage/emulated/0/Music/Rock/x.mp3" (older) -> "Music/Rock". */
+    private fun folderName(raw: String?): String {
+        if (raw.isNullOrBlank()) return ""
+        val path = if (raw.startsWith("/")) raw.substringBeforeLast('/') else raw
+        return path.removePrefix("/storage/emulated/0/").trim('/').ifBlank { "Internal storage" }
     }
 
     private fun isGenericAudioLabel(value: String): Boolean {
