@@ -8,7 +8,7 @@
 
 *A glassy, colour-shifting, offline-first music player for the songs already on your Android phone.*
 
-[**Download**](#-download) &nbsp;•&nbsp; [**Screenshots**](#-showcase) &nbsp;•&nbsp; [**Features**](#-features) &nbsp;•&nbsp; [**Build**](#-build-from-source) &nbsp;•&nbsp; [**Under the hood**](#-under-the-hood)
+[**Download**](#-download) &nbsp;•&nbsp; [**Screenshots**](#-showcase) &nbsp;•&nbsp; [**Features**](#-features) &nbsp;•&nbsp; [**Build**](#-build-from-source) &nbsp;•&nbsp; [**Roadmap**](docs/ROADMAP.md) &nbsp;•&nbsp; [**Under the hood**](#-under-the-hood)
 
 <br>
 
@@ -162,24 +162,9 @@ First build requires internet for Gradle dependencies. Lyrics are looked up on d
 <summary><b>Roadmap</b></summary>
 <br>
 
-- [x] MediaSessionService and MediaController foundation
-- [x] System media-session metadata and playback controls
-- [x] Asynchronous local library scan
-- [x] Bounded album palette extraction/cache
-- [x] Full player screen and artwork ambience
-- [x] Seek bar, progress and duration
-- [x] Animated library/player transitions
-- [x] Search, album and artist views (folder view still to do)
-- [x] Playback queue, shuffle and repeat modes
-- [x] User-created playlist combos
-- [ ] Persistent queue editing
-- [x] Haze-backed backdrop blur and adaptive glass treatment
-- [ ] Refraction-driven glass highlights
-- [x] Audio-reactive visualizer
-- [ ] Sleep timer
-- [x] System equalizer controls
-- [x] Signed release builds published to GitHub Releases
-- [ ] Instrumentation tests, device validation and release polish
+LUNA 1.0.0 — **The First Light** is out. The next milestone, **1.1.0 — The Experience**, prioritizes playback reliability, artwork/loading performance, real-device validation, folder browsing, persistent queue editing, a sleep timer, and visualizer preferences.
+
+The full versioned roadmap, prioritized TODO list, acceptance criteria, and release gates live in **[docs/ROADMAP.md](docs/ROADMAP.md)**. That document is the source of truth; this section is only a short overview.
 
 </details>
 
