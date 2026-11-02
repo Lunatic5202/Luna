@@ -103,6 +103,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import com.luna.music.data.MusicRepository
+import com.luna.music.data.PlayStats
+import androidx.compose.foundation.horizontalScroll
 import com.luna.music.data.ComboRepository
 import com.luna.music.data.MusicCombo
 import com.luna.music.data.Track
@@ -132,7 +134,7 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 
 private enum class LunaSection { Library, Discover, Downloads, Equalizer, Combos, About }
-private enum class LibraryView { Tracks, Artists, Albums }
+private enum class LibraryView { Tracks, Artists, Albums, Folders, Recent, Top }
 private enum class LibrarySort { Title, Artist, Album }
 private data class LibraryDisplayData(
     val visibleTracks: List<Track>,
@@ -158,6 +160,18 @@ class MainActivity : ComponentActivity() {
     private var showNowPlaying by mutableStateOf(false)
     private var currentSection by mutableStateOf(LunaSection.Library)
     private var combos by mutableStateOf<List<MusicCombo>>(emptyList())
+    private lateinit var playStats: PlayStats
+    private var playCounts by mutableStateOf<Map<Long, Int>>(emptyMap())
+
+    // A play only counts once a track has been current for 20 seconds, so skipping doesn't inflate "Top".
+    private val countHandler = Handler(Looper.getMainLooper())
+    private var pendingCountId = -1L
+    private val countRunnable = Runnable {
+        if (pendingCountId >= 0 && isPlaying) {
+            playStats.increment(pendingCountId)
+            playCounts = playStats.counts()
+        }
+    }
     private var libraryLoading by mutableStateOf(false)
     private var libraryLoadFailed by mutableStateOf(false)
     private var libraryLoadJob: Job? = null
@@ -283,6 +297,8 @@ class MainActivity : ComponentActivity() {
         repository = MusicRepository(this)
         comboRepository = ComboRepository(this)
         combos = comboRepository.load()
+        playStats = PlayStats(this)
+        playCounts = playStats.counts()
         themeEngine = LunaThemeEngine(this)
 
         val permission = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
@@ -312,6 +328,9 @@ class MainActivity : ComponentActivity() {
                             val track = tracks.firstOrNull { it.id.toString() == mediaItem?.mediaId } ?: return
                             selectedTrack = track
                             updatePaletteFor(track)
+                            countHandler.removeCallbacks(countRunnable)
+                            pendingCountId = track.id
+                            countHandler.postDelayed(countRunnable, 20_000L)
                         }
                     })
                     controller.currentMediaItem?.let { item ->
@@ -415,6 +434,7 @@ class MainActivity : ComponentActivity() {
                     ) { section -> when (section) {
                     LunaSection.Library -> LunaHome(
                         tracks = tracks,
+                        playCounts = playCounts,
                         libraryLoading = libraryLoading,
                         libraryLoadFailed = libraryLoadFailed,
                         reloadLibrary = ::loadLibrary,
@@ -568,6 +588,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        countHandler.removeCallbacks(countRunnable)
         unregisterAudioObserver()
         libraryLoadGeneration++
         libraryLoadJob?.cancel()
@@ -644,6 +665,7 @@ private fun LunaPermissionIntro(
 @Composable
 private fun LunaHome(
     tracks: List<Track>,
+    playCounts: Map<Long, Int>,
     libraryLoading: Boolean,
     libraryLoadFailed: Boolean,
     reloadLibrary: () -> Unit,
@@ -666,7 +688,7 @@ private fun LunaHome(
     val libraryView = LibraryView.entries.firstOrNull { it.name == selectedViewName } ?: LibraryView.Tracks
     val librarySort = LibrarySort.entries.firstOrNull { it.name == selectedSortName } ?: LibrarySort.Title
     var libraryDisplay by remember { mutableStateOf(LibraryDisplayData(tracks, emptyList())) }
-    LaunchedEffect(tracks, searchQuery, librarySort, libraryView) {
+    LaunchedEffect(tracks, searchQuery, librarySort, libraryView, playCounts) {
         val query = searchQuery.trim()
         libraryDisplay = withContext(Dispatchers.Default) {
             val visible = tracks.asSequence()
@@ -682,8 +704,21 @@ private fun LunaHome(
                         .thenBy(String.CASE_INSENSITIVE_ORDER) { it.title }
                 })
                 .toList()
+            val ordered = when (libraryView) {
+                LibraryView.Recent -> visible.sortedByDescending { it.dateAdded }.take(100)
+                LibraryView.Top -> visible.filter { (playCounts[it.id] ?: 0) > 0 }
+                    .sortedWith(
+                        compareByDescending<Track> { playCounts[it.id] ?: 0 }
+                            .thenBy(String.CASE_INSENSITIVE_ORDER) { it.title }
+                    ).take(100)
+                else -> visible
+            }
             val groups = when (libraryView) {
-                LibraryView.Tracks -> emptyList()
+                LibraryView.Tracks, LibraryView.Recent, LibraryView.Top -> emptyList()
+                LibraryView.Folders -> visible
+                    .groupBy { it.folder.ifBlank { "Other" } }
+                    .entries.sortedBy { it.key.lowercase() }
+                    .map { it.key to it.value }
                 LibraryView.Artists -> visible
                     .groupBy { it.artist.ifBlank { "Unknown artist" } }
                     .entries.sortedBy { it.key.lowercase() }
@@ -693,7 +728,7 @@ private fun LunaHome(
                     .entries.sortedBy { it.key.lowercase() }
                     .map { it.key to it.value }
             }
-            LibraryDisplayData(visible, groups)
+            LibraryDisplayData(ordered, groups)
         }
     }
     val visibleTracks = libraryDisplay.visibleTracks
@@ -801,7 +836,10 @@ private fun LunaHome(
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     LibraryView.entries.forEach { view ->
                         FilterChip(
                             selected = libraryView == view,
@@ -819,13 +857,29 @@ private fun LunaHome(
                 val libraryListState = rememberLazyListState()
                 if (visibleTracks.isEmpty()) {
                     Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        Text("No matches. Try a different search.", color = palette.muted)
+                        Text(
+                            if (libraryView == LibraryView.Top && searchQuery.isBlank())
+                                "Play some songs and your most played will show up here."
+                            else "No matches. Try a different search.",
+                            color = palette.muted,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 24.dp)
+                        )
                     }
                 } else {
                     LazyColumn(Modifier.weight(1f), state = libraryListState, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         when (libraryView) {
-                            LibraryView.Tracks -> items(visibleTracks, key = { "track:${it.id}" }) { track ->
+                            LibraryView.Tracks, LibraryView.Recent, LibraryView.Top ->
+                              items(visibleTracks, key = { "${libraryView.name}:${it.id}" }) { track ->
                                 LibraryTrackRow(track, palette, selectedTrack?.id == track.id, playing) { play(it) }
+                            }
+                            LibraryView.Folders -> groupedTracks.forEach { (folder, folderTracks) ->
+                                item(key = "folder:$folder") {
+                                    LibraryGroupHeading("$folder · ${folderTracks.size}", palette)
+                                }
+                                items(folderTracks, key = { "folder:${folder}:${it.id}" }) { track ->
+                                    LibraryTrackRow(track, palette, selectedTrack?.id == track.id, playing) { play(it) }
+                                }
                             }
                             LibraryView.Artists -> groupedTracks.forEach { (artist, artistTracks) ->
                                     item(key = "artist:$artist") {
