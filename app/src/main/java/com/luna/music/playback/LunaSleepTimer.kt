@@ -3,6 +3,7 @@ package com.luna.music.playback
 import android.os.Handler
 import android.os.Looper
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * Lives in the service process next to the player and is driven by the UI through [state].
  * Everything runs on the main thread, where ExoPlayer is created.
  */
+@androidx.annotation.OptIn(UnstableApi::class)
 object LunaSleepTimer {
     sealed interface State {
         data object Off : State
