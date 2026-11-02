@@ -6,9 +6,9 @@
 
 **Music, in another dimension.**
 
-*A glassy, colour-shifting, offline-first music player for the songs already on your Android phone.*
+*A glassy, colour-shifting, offline-first music player for the music already on your devices.*
 
-[**Download**](#-download) &nbsp;•&nbsp; [**Screenshots**](#-showcase) &nbsp;•&nbsp; [**Features**](#-features) &nbsp;•&nbsp; [**Build**](#-build-from-source) &nbsp;•&nbsp; [**Roadmap**](docs/ROADMAP.md) &nbsp;•&nbsp; [**TODO**](docs/TODO.md) &nbsp;•&nbsp; [**Under the hood**](#-under-the-hood)
+[**Download**](#-download) &nbsp;•&nbsp; [**Screenshots**](#-showcase) &nbsp;•&nbsp; [**Features**](#-features) &nbsp;•&nbsp; [**Build**](#-build-from-source) &nbsp;•&nbsp; [**Roadmap**](docs/ROADMAP.md) &nbsp;•&nbsp; [**TODO**](docs/TODO.md) &nbsp;•&nbsp; [**iOS plan**](docs/IOS.md) &nbsp;•&nbsp; [**Under the hood**](#-under-the-hood)
 
 <br>
 
