@@ -2,7 +2,7 @@
 
 > **Current release:** 1.0.0 — The First Light  
 > **Next milestone:** 1.1.0 — The Experience  
-> **Product direction:** a polished, offline-first Android music player with adaptive artwork-driven visuals. Keep the interface restrained, fast, and music-focused.
+> **Product direction:** a polished, offline-first music player for Android and iPhone, with native platform experiences and adaptive artwork-driven visuals. Keep the interface restrained, fast, and music-focused.
 
 This is the canonical planning document for LUNA. Check items off only after the implementation is merged and its acceptance criteria have been verified. A successful CI build is necessary, but it does not replace device testing.
 
@@ -115,6 +115,46 @@ These are planned investigations, not promises that every Android device exposes
 - [ ] Review privacy, permissions, and offline behavior before adding any network-connected feature.
 
 ---
+
+
+## iPhone track — Native iOS application
+
+**Goal:** deliver full LUNA feature parity on iPhone with a native SwiftUI implementation. This track runs alongside Android releases and does not delay Android stability work.
+
+The iOS application is planned, not yet implemented. The detailed architecture, platform constraints, feature checklist, and acceptance gates are maintained in [docs/IOS.md](IOS.md).
+
+### iOS 0.1 — Foundation
+
+- [ ] Establish the SwiftUI project and reproducible macOS CI build.
+- [ ] Confirm Xcode/macOS runner versions and iOS deployment target.
+- [ ] Prototype Files imports, folder access, and security-scoped resource handling.
+- [ ] Prototype authorized synced-media-library access and document source limitations.
+- [ ] Compare playback approaches for imported files and eligible synced media.
+- [ ] Establish the playback coordinator, design system, and unit-test baseline.
+
+### iOS 0.2 — Core Player
+
+- [ ] Build the library: Songs, Albums, Artists, Folders, search, and sorting.
+- [ ] Implement playback, queue, shuffle/repeat, playlists, and favorites.
+- [ ] Integrate background audio, lock-screen/Control Center controls, and route handling.
+- [ ] Implement artwork loading, palette extraction, and Now Playing UI.
+
+### iOS 0.3 — LUNA Experience
+
+- [ ] Add lyrics and local caching.
+- [ ] Add playback-signal visualizer without microphone recording.
+- [ ] Evaluate and implement equalizer/DSP for compatible audio sources.
+- [ ] Add sleep timer, settings, accessibility, and motion preferences.
+- [ ] Complete animation, performance, and source-compatibility testing.
+
+### iOS 1.0 — iPhone release
+
+- [ ] Complete simulator and physical-device regression testing.
+- [ ] Complete TestFlight beta and feedback cycle.
+- [ ] Complete signing, privacy disclosures, App Store metadata, and review.
+- [ ] Publish only after all advertised capabilities are verified.
+
+**No-Mac development plan:** use GitHub-hosted macOS runners for compilation and automated simulator tests. A physical Mac and iPhone are still required for final hands-on device validation. Apple signing and distribution access will be arranged when preparing TestFlight/App Store releases.
 
 ## Ongoing engineering checklist
 
