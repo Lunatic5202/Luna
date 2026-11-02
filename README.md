@@ -8,7 +8,7 @@
 
 *A glassy, colour-shifting, offline-first music player for the songs already on your Android phone.*
 
-[**Download**](#-download) &nbsp;•&nbsp; [**Screenshots**](#-showcase) &nbsp;•&nbsp; [**Features**](#-features) &nbsp;•&nbsp; [**Build**](#-build-from-source) &nbsp;•&nbsp; [**Roadmap**](docs/ROADMAP.md) &nbsp;•&nbsp; [**Under the hood**](#-under-the-hood)
+[**Download**](#-download) &nbsp;•&nbsp; [**Screenshots**](#-showcase) &nbsp;•&nbsp; [**Features**](#-features) &nbsp;•&nbsp; [**Build**](#-build-from-source) &nbsp;•&nbsp; [**Roadmap**](docs/ROADMAP.md) &nbsp;•&nbsp; [**TODO**](docs/TODO.md) &nbsp;•&nbsp; [**Under the hood**](#-under-the-hood)
 
 <br>
 
@@ -164,7 +164,7 @@ First build requires internet for Gradle dependencies. Lyrics are looked up on d
 
 LUNA 1.0.0 — **The First Light** is out. The next milestone, **1.1.0 — The Experience**, prioritizes playback reliability, artwork/loading performance, real-device validation, folder browsing, persistent queue editing, a sleep timer, and visualizer preferences.
 
-The full versioned roadmap, prioritized TODO list, acceptance criteria, and release gates live in **[docs/ROADMAP.md](docs/ROADMAP.md)**. That document is the source of truth; this section is only a short overview.
+The full versioned plan and acceptance criteria live in **[docs/ROADMAP.md](docs/ROADMAP.md)**. The short execution queue is tracked separately in **[docs/TODO.md](docs/TODO.md)**.
 
 </details>
 
