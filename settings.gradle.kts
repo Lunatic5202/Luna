@@ -7,3 +7,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "LUNA"
 include(":app")
+include(":shared")
