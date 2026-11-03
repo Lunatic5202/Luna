@@ -235,6 +235,10 @@ fun NowPlayingScreen(
                 if (draggedQueueKey == null) queueItems = readQueueItems(controller)
             }
 
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                if (draggedQueueKey == null) queueItems = readQueueItems(controller)
+            }
+
             override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
                 shuffleOn = shuffleModeEnabled
                 // The upcoming tracks differ once the order is shuffled.
@@ -249,7 +253,10 @@ fun NowPlayingScreen(
         onDispose { controller?.removeListener(listener) }
     }
 
-    val queueReorderEnabled = controller?.isCommandAvailable(Player.COMMAND_CHANGE_MEDIA_ITEMS) == true
+    // Reordering a shuffled traversal requires translating displayed positions back to
+    // playlist indices. Keep manual reordering available only when both orders match.
+    val queueReorderEnabled = !shuffleOn &&
+        controller?.isCommandAvailable(Player.COMMAND_CHANGE_MEDIA_ITEMS) == true
     val moveQueueEntry: (Int, Int) -> Unit = { fromIndex, toIndex ->
         if (fromIndex in queueItems.indices && toIndex in queueItems.indices && fromIndex != toIndex) {
             val reordered = queueItems.toMutableList()
@@ -730,13 +737,15 @@ fun NowPlayingScreen(
                                                 onDragStart = {
                                                     draggedQueueKey = entry.key
                                                     draggedQueueOffset = 0f
-                                                    dragFromIndex = queueItems.indexOfFirst { it.key == entry.key }
-                                                    dragCurrentKey = queueItems.getOrNull(controller?.currentMediaItemIndex ?: -1)?.key
+                                                    dragFromIndex = entry.playerIndex
+                                                    dragCurrentKey = queueItems.firstOrNull {
+                                                        it.playerIndex == controller?.currentMediaItemIndex
+                                                    }?.key
                                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 },
                                                 onDragEnd = {
                                                     val from = dragFromIndex
-                                                    val to = queueItems.indexOfFirst { it.key == entry.key }
+                                                    val to = queueItems.firstOrNull { it.key == entry.key }?.playerIndex ?: -1
                                                     if (from >= 0 && to >= 0 && from != to) controller?.moveMediaItem(from, to)
                                                     draggedQueueKey = null
                                                     draggedQueueOffset = 0f
@@ -789,7 +798,7 @@ fun NowPlayingScreen(
                                         }
                                     }
                                     .clickable {
-                                        controller?.seekTo(index, 0L)
+                                        controller?.seekTo(entry.playerIndex, 0L)
                                         controller?.play()
                                         showQueue = false
                                     }.padding(12.dp),
@@ -864,21 +873,55 @@ private fun Modifier.dismissOnSwipeDown(onDismiss: () -> Unit): Modifier = point
 
 private data class QueueItemEntry(
     val key: String,
-    val mediaItem: MediaItem
+    val mediaItem: MediaItem,
+    /** Index in ExoPlayer's underlying playlist, not the row's displayed position. */
+    val playerIndex: Int
 )
 
+/**
+ * Returns the current item followed by the tracks ExoPlayer will actually visit next.
+ *
+ * ExoPlayer keeps its media items in playlist order when shuffle is enabled; its Timeline
+ * exposes the real traversal through getNextWindowIndex(). Walking that traversal also
+ * preserves the player's no-repeat shuffle cycle. The seen set prevents a repeat-all queue
+ * from looping forever while still showing each item at most once.
+ */
 private fun readQueueItems(controller: MediaController?): List<QueueItemEntry> {
-    if (controller == null) return emptyList()
+    if (controller == null || controller.mediaItemCount == 0) return emptyList()
+
     val occurrences = mutableMapOf<String, Int>()
-    return (0 until controller.mediaItemCount).map { index ->
+    fun entryAt(index: Int): QueueItemEntry {
         val item = controller.getMediaItemAt(index)
         val identity = item.mediaId.ifBlank {
             item.mediaMetadata.title?.toString().orEmpty().ifBlank { "queue-item-$index" }
         }
         val occurrence = occurrences[identity] ?: 0
         occurrences[identity] = occurrence + 1
-        QueueItemEntry("$identity#$occurrence", item)
+        return QueueItemEntry("$identity#$occurrence", item, index)
     }
+
+    val currentIndex = controller.currentMediaItemIndex
+    if (currentIndex !in 0 until controller.mediaItemCount) {
+        return (0 until controller.mediaItemCount).map(::entryAt)
+    }
+
+    val timeline = controller.currentTimeline
+    if (timeline.isEmpty) return (0 until controller.mediaItemCount).map(::entryAt)
+
+    val result = mutableListOf(entryAt(currentIndex))
+    val seen = mutableSetOf(currentIndex)
+    val repeatMode = if (controller.repeatMode == Player.REPEAT_MODE_ONE) {
+        Player.REPEAT_MODE_OFF
+    } else {
+        controller.repeatMode
+    }
+    var index = currentIndex
+    while (result.size < controller.mediaItemCount) {
+        index = timeline.getNextWindowIndex(index, repeatMode, controller.shuffleModeEnabled)
+        if (index == C.INDEX_UNSET || !seen.add(index)) break
+        result += entryAt(index)
+    }
+    return result
 }
 
 private data class ArtworkPeekItem(
