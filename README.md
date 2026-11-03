@@ -45,7 +45,7 @@
 ## Platform status
 
 - **Android:** current released application. See [releases](https://github.com/Lunatic5202/Luna/releases).
-- **iPhone:** planned native SwiftUI application. Development planning is tracked in [docs/IOS.md](docs/IOS.md); no iOS build is available yet.
+- **iPhone:** native SwiftUI application in development. The project currently has a foundation scaffold; playback and a distributable iOS build are not complete. The intended distribution route is an **unsigned IPA attached to GitHub Releases**, which each user signs with their own Apple ID. No App Store or TestFlight distribution is planned.
 
 The iOS track will use native Apple frameworks and target feature parity while respecting iOS file-access, audio-source, and distribution constraints. The Android app remains independently maintained.
 
