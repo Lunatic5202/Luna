@@ -348,13 +348,13 @@ internal fun LunaSettingsScaffold(
                 Modifier.fillMaxSize().padding(top = topInset, bottom = bottomInset).padding(horizontal = 22.dp)
             ) {
                 Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = openDrawer) {
-                        Icon(Icons.Default.Menu, contentDescription = "Open navigation", tint = palette.onBackground)
-                    }
-                    Spacer(Modifier.width(8.dp))
                     Column(Modifier.weight(1f)) {
                         Text(title, color = palette.onBackground, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
                         Text(subtitle, color = palette.onBackground.copy(alpha = 0.76f), fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    IconButton(onClick = openDrawer) {
+                        Icon(Icons.Default.Menu, contentDescription = "Open navigation", tint = palette.onBackground)
                     }
                 }
                 Column(Modifier.fillMaxSize(), content = content)

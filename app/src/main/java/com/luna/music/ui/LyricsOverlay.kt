@@ -18,6 +18,8 @@ import androidx.compose.animation.core.tween
 import androidx.activity.compose.BackHandler
 import androidx.core.content.edit
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
@@ -157,7 +159,13 @@ fun LyricsOverlay(
         )
         // Translucent on purpose: the player stays faintly visible behind the lyrics.
         // Tune LYRICS_SCRIM_* below for more or less see-through.
-        Box(Modifier.fillMaxSize().background(palette.background.copy(alpha = LYRICS_SCRIM_BASE))) {
+        // pointerInput makes the overlay absorb touches; without it, taps near the top fell through
+        // to the player underneath (e.g. the sleep timer button).
+        Box(
+            Modifier.fillMaxSize()
+                .background(palette.background.copy(alpha = LYRICS_SCRIM_BASE))
+                .pointerInput(Unit) { detectTapGestures { } }
+        ) {
             AlbumArtwork(
                 artworkUri = track.artworkUri?.toString(),
                 palette = palette,
