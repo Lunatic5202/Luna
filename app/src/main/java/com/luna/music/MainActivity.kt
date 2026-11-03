@@ -1091,7 +1091,9 @@ private fun LunaDrawerItem(
         // The active destination sits on a tinted glass pill that catches the tilt light.
         LunaGlassSurface(
             palette = palette,
-            modifier = Modifier.fillMaxWidth().background(palette.primary.copy(alpha = 0.14f)),
+            // Clip before tinting: a background applied outside the surface's own clip drew a sharp rectangle.
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+                .background(palette.primary.copy(alpha = 0.14f)),
             shape = RoundedCornerShape(28.dp),
             refraction = false
         ) { item() }
