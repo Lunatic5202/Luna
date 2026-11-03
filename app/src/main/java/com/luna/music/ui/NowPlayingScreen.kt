@@ -228,6 +228,9 @@ fun NowPlayingScreen(
     var repeatModeState by remember(controller) {
         mutableIntStateOf(controller?.repeatMode ?: Player.REPEAT_MODE_OFF)
     }
+    // Shuffle should keep a library-wide mix going. Remember whether Repeat All was enabled
+    // automatically so turning shuffle back off can restore the user's previous Repeat Off state.
+    var repeatAllWasEnabledForShuffle by remember(controller) { mutableStateOf(false) }
 
     DisposableEffect(controller) {
         val listener = object : Player.Listener {
@@ -629,7 +632,22 @@ fun NowPlayingScreen(
                             animationSpec = tween(240),
                             label = "shuffle-state"
                         )
-                        BouncyIconButton(onClick = { controller?.shuffleModeEnabled = !shuffleOn }) {
+                        BouncyIconButton(onClick = {
+                            val player = controller ?: return@BouncyIconButton
+                            val enablingShuffle = !shuffleOn
+                            if (enablingShuffle) {
+                                if (player.repeatMode == Player.REPEAT_MODE_OFF) {
+                                    player.repeatMode = Player.REPEAT_MODE_ALL
+                                    repeatAllWasEnabledForShuffle = true
+                                }
+                            } else if (repeatAllWasEnabledForShuffle &&
+                                player.repeatMode == Player.REPEAT_MODE_ALL
+                            ) {
+                                player.repeatMode = Player.REPEAT_MODE_OFF
+                                repeatAllWasEnabledForShuffle = false
+                            }
+                            player.shuffleModeEnabled = enablingShuffle
+                        }) {
                             Icon(Icons.Default.Shuffle, contentDescription = "Toggle shuffle", tint = shuffleTint)
                         }
                         BouncyIconButton(onClick = onPrevious) {
@@ -657,6 +675,9 @@ fun NowPlayingScreen(
                             Icon(Icons.Default.SkipNext, contentDescription = "Next track", tint = palette.onBackground, modifier = Modifier.size(32.dp))
                         }
                         BouncyIconButton(onClick = {
+                            // A manual repeat choice takes precedence over shuffle's automatic
+                            // Repeat All default and must not be overwritten when shuffle is disabled.
+                            repeatAllWasEnabledForShuffle = false
                             controller?.repeatMode = when (repeatModeState) {
                                 Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
                                 Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
