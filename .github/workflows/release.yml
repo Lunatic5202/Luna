@@ -1,7 +1,6 @@
 name: Release
 
-# Publishes a signed APK to GitHub Releases whenever a version tag (v0.2.0, v1.0.0, ...) is pushed,
-# or when a release is created from the GitHub website (which creates the tag for you).
+# Publishes the signed Android APK and an unsigned iOS IPA to GitHub Releases whenever a version tag is pushed.
 on:
   push:
     tags: ['v*']
@@ -84,3 +83,59 @@ jobs:
             gh release create "$GITHUB_REF_NAME" "LUNA-${GITHUB_REF_NAME}.apk" \
               --title "LUNA ${GITHUB_REF_NAME}" --notes-file notes.md --generate-notes
           fi
+
+  ios-unsigned-ipa:
+    name: Build unsigned iOS IPA
+    needs: release
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode
+        run: |
+          if [ -d /Applications/Xcode_16.4.app ]; then
+            sudo xcode-select -s /Applications/Xcode_16.4.app
+          fi
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build unsigned iOS app
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project LUNA.xcodeproj \
+            -scheme LUNA \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath "$RUNNER_TEMP/LUNA-DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package unsigned IPA and checksum
+        run: |
+          APP="$RUNNER_TEMP/LUNA-DerivedData/Build/Products/Release-iphoneos/LUNA.app"
+          test -d "$APP"
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/LUNA.app"
+          IPA="$RUNNER_TEMP/LUNA-${GITHUB_REF_NAME}-unsigned.ipa"
+          (cd "$RUNNER_TEMP/ipa" && ditto -c -k --sequesterRsrc --keepParent Payload "$IPA")
+          shasum -a 256 "$IPA" > "$IPA.sha256"
+          echo "IPA_PATH=$IPA" >> "$GITHUB_ENV"
+
+      - name: Attach unsigned IPA to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" \
+            "$IPA_PATH" "$IPA_PATH.sha256" --clobber
