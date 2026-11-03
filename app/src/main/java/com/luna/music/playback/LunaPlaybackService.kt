@@ -55,8 +55,14 @@ class LunaPlaybackService : MediaSessionService() {
 
             override fun onPlayerError(error: PlaybackException) {
                 failedInARow++
-                if (player.hasNextMediaItem() && failedInARow <= player.mediaItemCount) {
-                    player.seekToNextMediaItem()
+                val nextIndex = player.currentTimeline.getNextWindowIndex(
+                    player.currentMediaItemIndex,
+                    player.repeatMode,
+                    player.shuffleModeEnabled
+                )
+                if (nextIndex != C.INDEX_UNSET && failedInARow <= player.mediaItemCount) {
+                    // Use shuffle/repeat-aware traversal rather than playlist-order seeking.
+                    player.seekToNext()
                     player.prepare()
                     player.play()
                 }
