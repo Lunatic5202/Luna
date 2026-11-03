@@ -55,7 +55,6 @@ kotlin {
 }
 
 dependencies {
-    implementation(project(":shared"))
     val composeBom = platform("androidx.compose:compose-bom:2025.10.00")
     implementation(composeBom)
 
