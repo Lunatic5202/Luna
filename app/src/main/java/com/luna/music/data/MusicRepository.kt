@@ -39,6 +39,9 @@ class MusicRepository(private val context: Context) {
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.SIZE} > 8192 AND ${MediaStore.Audio.Media.DURATION} >= 15000"
         val sortOrder = "${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
         val result = mutableListOf<Track>()
+        // Exact copies (same title, artist, length and byte size) collapse to one entry, so a song that
+        // was imported twice shows once. The original is kept over the Music/LUNA copy.
+        val seen = HashMap<String, Int>()
         val coroutineContext = currentCoroutineContext()
 
         try {
@@ -77,6 +80,19 @@ class MusicRepository(private val context: Context) {
                     val artwork = ContentUris.withAppendedId(
                         "content://media/external/audio/albumart".toUri(), albumId
                     )
+                    val folder = folderName(cursor.getString(pathCol))
+                    val copyKey = "${title.lowercase(Locale.ROOT)}|${artist.lowercase(Locale.ROOT)}|$duration|$size"
+                    val existing = seen[copyKey]
+                    if (existing != null) {
+                        val keptFolder = result[existing].folder
+                        if (keptFolder.startsWith("Music/LUNA") && !folder.startsWith("Music/LUNA")) {
+                            result[existing] = buildTrack(
+                                id, title, artist, cursor.getString(albumCol), albumId, collection, cursor.getLong(addedCol), folder
+                            )
+                        }
+                        continue
+                    }
+                    seen[copyKey] = result.size
                     result += Track(
                         id = id,
                         title = title,
@@ -85,7 +101,7 @@ class MusicRepository(private val context: Context) {
                         uri = ContentUris.withAppendedId(collection, id),
                         artworkUri = if (albumId > 0L) artwork else null,
                         dateAdded = cursor.getLong(addedCol),
-                        folder = folderName(cursor.getString(pathCol))
+                        folder = folder
                     )
                 }
             }
@@ -98,6 +114,28 @@ class MusicRepository(private val context: Context) {
         }
         result
     }
+
+    private fun buildTrack(
+        id: Long,
+        title: String,
+        artist: String,
+        album: String?,
+        albumId: Long,
+        collection: android.net.Uri,
+        dateAdded: Long,
+        folder: String
+    ): Track = Track(
+        id = id,
+        title = title,
+        artist = artist.ifBlank { "Unknown artist" },
+        album = album?.takeIf { it.isNotBlank() } ?: "Unknown album",
+        uri = ContentUris.withAppendedId(collection, id),
+        artworkUri = if (albumId > 0L) {
+            ContentUris.withAppendedId("content://media/external/audio/albumart".toUri(), albumId)
+        } else null,
+        dateAdded = dateAdded,
+        folder = folder
+    )
 
     /** "Music/Rock/" (Android 10+) or "/storage/emulated/0/Music/Rock/x.mp3" (older) -> "Music/Rock". */
     private fun folderName(raw: String?): String {

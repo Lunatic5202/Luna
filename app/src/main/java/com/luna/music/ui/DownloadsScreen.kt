@@ -73,11 +73,14 @@ fun DownloadsScreen(
                 runCatching {
                     importer.importAudio(uris)
                 }.onSuccess { result ->
-                    importFeedback = if (result.imported > 0) {
-                        "Added ${result.imported} audio ${if (result.imported == 1) "file" else "files"} to your LUNA library" +
-                            if (result.skipped > 0) " · ${result.skipped} skipped" else ""
-                    } else {
-                        "No supported audio files were imported."
+                    importFeedback = when {
+                        result.imported > 0 ->
+                            "Added ${result.imported} audio ${if (result.imported == 1) "file" else "files"} to your LUNA library" +
+                                (if (result.duplicates > 0) " · ${result.duplicates} already in your library" else "") +
+                                (if (result.skipped > 0) " · ${result.skipped} skipped" else "")
+                        result.duplicates > 0 && result.skipped == 0 ->
+                            "Already in your library, nothing to add."
+                        else -> "No supported audio files were imported."
                     }
                 }.onFailure {
                     importFeedback = it.message ?: "Unable to import the selected audio."
