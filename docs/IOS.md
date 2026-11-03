@@ -171,7 +171,7 @@ This is a proposed layout, not an existing directory tree. Adjust it to the proj
 - [ ] Simulator test matrix across supported iPhone sizes and iOS versions.
 - [ ] Physical iPhone test for audio routes, lock screen, background playback, imports, and interruptions.
 - [ ] VoiceOver, Dynamic Type, contrast, and reduced-motion audit.
-- [ ] Privacy manifest/declaration and App Store metadata review where applicable.
+- [ ] Privacy manifest/declaration and public privacy documentation review.
 - [ ] Unsigned IPA packaged and attached to a GitHub Release with checksum and clear sideloading instructions.
 - [ ] Physical-device installation and playback validation with a user-owned free Apple ID.
 
