@@ -167,6 +167,9 @@ fun NowPlayingScreen(
     // Reordering is previewed on the local list and committed to the player once, when the finger lifts.
     var dragFromIndex by remember { mutableIntStateOf(-1) }
     var dragCurrentKey by remember { mutableStateOf<String?>(null) }
+    // Playlist index behind each displayed slot when a drag began. Rows are reordered on screen
+    // while dragging, so the drop slot has to be translated back through this list.
+    var dragSlotPlayerIndices by remember { mutableStateOf<List<Int>>(emptyList()) }
     val queueAutoScrollEdge = with(LocalDensity.current) { 54.dp.toPx() }
     val queueAutoScrollStep = with(LocalDensity.current) { 18.dp.toPx() }
     val queueSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -742,6 +745,7 @@ fun NowPlayingScreen(
                                                     draggedQueueKey = entry.key
                                                     draggedQueueOffset = 0f
                                                     dragFromIndex = entry.playerIndex
+                                                    dragSlotPlayerIndices = queueItems.map { it.playerIndex }
                                                     dragCurrentKey = queueItems.firstOrNull {
                                                         it.playerIndex == controller?.currentMediaItemIndex
                                                     }?.key
@@ -749,11 +753,13 @@ fun NowPlayingScreen(
                                                 },
                                                 onDragEnd = {
                                                     val from = dragFromIndex
-                                                    val to = queueItems.firstOrNull { it.key == entry.key }?.playerIndex ?: -1
+                                                    val dropSlot = queueItems.indexOfFirst { it.key == entry.key }
+                                                    val to = dragSlotPlayerIndices.getOrNull(dropSlot) ?: -1
                                                     if (from >= 0 && to >= 0 && from != to) controller?.moveMediaItem(from, to)
                                                     draggedQueueKey = null
                                                     draggedQueueOffset = 0f
                                                     dragFromIndex = -1
+                                                    dragSlotPlayerIndices = emptyList()
                                                     // Keep highlighting by identity until the player has caught up with the move.
                                                     scope.launch {
                                                         delay(700)
@@ -765,6 +771,7 @@ fun NowPlayingScreen(
                                                     draggedQueueKey = null
                                                     draggedQueueOffset = 0f
                                                     dragFromIndex = -1
+                                                    dragSlotPlayerIndices = emptyList()
                                                     dragCurrentKey = null
                                                 },
                                                 onDrag = { change, amount ->
