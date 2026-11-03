@@ -915,11 +915,7 @@ private fun readQueueItems(controller: MediaController?): List<QueueItemEntry> {
 
     val result = mutableListOf(entryAt(currentIndex))
     val seen = mutableSetOf(currentIndex)
-    val repeatMode = if (controller.repeatMode == Player.REPEAT_MODE_ONE) {
-        Player.REPEAT_MODE_OFF
-    } else {
-        controller.repeatMode
-    }
+    val repeatMode = controller.repeatMode
     var index = currentIndex
     while (result.size < controller.mediaItemCount) {
         index = timeline.getNextWindowIndex(index, repeatMode, controller.shuffleModeEnabled)
