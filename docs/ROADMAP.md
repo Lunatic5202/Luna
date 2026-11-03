@@ -1,7 +1,8 @@
 # LUNA — Product Roadmap & Living TODO
 
 > **Current release:** 1.0.0 — The First Light  
-> **Next milestone:** 1.1.0 — The Experience  
+> **Next release:** 1.0.1 — Maintenance & Reliability  
+> **Next feature milestone:** 1.1.0 — The Experience  
 > **Product direction:** a polished, offline-first music player for Android and iPhone, with native platform experiences and adaptive artwork-driven visuals. Keep the interface restrained, fast, and music-focused.
 
 This is the canonical planning document for LUNA. Check items off only after the implementation is merged and its acceptance criteria have been verified. A successful CI build is necessary, but it does not replace device testing.
@@ -38,6 +39,36 @@ The first public milestone. The following capabilities are documented as impleme
 - [x] Signed release workflow and GitHub release publishing.
 
 The checkmarks above describe documented project capabilities, not a claim that every device-specific behavior has been exhaustively tested.
+
+## 1.0.1 — Maintenance & Reliability
+
+**Goal:** ship a deliberately small Android maintenance release containing verified fixes and polish since 1.0.0. This is a patch release: no new feature commitments or redesigns.
+
+### Candidate changes since 1.0.0
+
+The current `main` branch contains the following post-tag Android changes, which must remain covered by regression checks before release:
+
+- [ ] Harden duplicate audio-import handling.
+- [ ] Correct shuffle/repeat state handling.
+- [ ] Improve download and library interactions.
+- [ ] Polish menu and lyrics touch interactions.
+- [ ] Preserve the current screen across device rotation.
+
+These are candidate changes, not a declaration that the patch is release-ready. Verify each against the current source and test behavior before publishing.
+
+### 1.0.1 release gate
+
+- [ ] Review the complete `v1.0.0...main` diff and exclude unrelated or unfinished work.
+- [ ] Verify the candidate Android fixes on a physical device where applicable.
+- [ ] Run Android debug and signed release builds; require green CI.
+- [ ] Smoke-test library import, playback, shuffle/repeat, downloads, lyrics interactions, and rotation.
+- [ ] Confirm upgrade installation from 1.0.0 preserves user data and settings.
+- [ ] Update version metadata, release notes, README, and checksums.
+- [ ] Publish the APK and checksum to the GitHub Release only after all gates pass.
+
+The iOS foundation and GitHub sideload-distribution work are tracked separately and are not part of the Android 1.0.1 patch scope.
+
+---
 
 ## 1.1.0 — The Experience
 
