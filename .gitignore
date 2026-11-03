@@ -24,3 +24,4 @@ ios/LUNA.xcodeproj/
 xcuserdata/
 DerivedData/
 *.xcresult
+ios/LUNA/Resources/Info.plist
