@@ -92,32 +92,12 @@ struct RootView: View {
     }
 
     private var trackList: some View {
-        ScrollView {
-            LazyVStack(spacing: 8) {
-                ForEach(library.tracks) { track in
-                    TrackRow(
-                        track: track,
-                        palette: palette,
-                        isCurrent: player.currentTrack?.id == track.id,
-                        isPlaying: player.isPlaying
-                    )
-                    .onTapGesture {
-                        player.play(tracks: library.tracks, startingAt: track)
-                    }
-                    .contextMenu {
-                        Button(role: .destructive) {
-                            library.remove(track)
-                            player.trackWasRemoved(track.id)
-                        } label: {
-                            Label("Remove from LUNA", systemImage: "trash")
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, 14)
-            // Keep the last rows clear of the mini player.
-            .padding(.bottom, player.currentTrack == nil ? 16 : 88)
-        }
+        // Keep the last rows clear of the mini player.
+        LibraryBrowser(
+            tracks: library.tracks,
+            palette: palette,
+            bottomInset: player.currentTrack == nil ? 16 : 88
+        )
     }
 
     private var emptyState: some View {
