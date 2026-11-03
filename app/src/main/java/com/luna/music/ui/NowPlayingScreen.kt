@@ -699,7 +699,12 @@ fun NowPlayingScreen(
             ) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(bottom = 28.dp)) {
                     Text("UP NEXT", color = palette.secondary, fontSize = 11.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
-                    Text("${queueItems.size} tracks · hold and drag to reorder", color = palette.onBackground.copy(alpha = 0.6f), fontSize = 12.sp)
+                    Text(
+                        if (shuffleOn) "${queueItems.size} tracks · shuffled playback order"
+                        else "${queueItems.size} tracks · hold and drag to reorder",
+                        color = palette.onBackground.copy(alpha = 0.6f),
+                        fontSize = 12.sp
+                    )
                     Spacer(Modifier.height(14.dp))
                     LazyColumn(
                         modifier = Modifier.fillMaxWidth().heightIn(max = 430.dp),
@@ -709,7 +714,7 @@ fun NowPlayingScreen(
                             val item = entry.mediaItem
                             val isDragging = draggedQueueKey == entry.key
                             val isCurrent = dragCurrentKey?.let { it == entry.key }
-                                ?: (index == (controller?.currentMediaItemIndex ?: -1))
+                                ?: (entry.playerIndex == (controller?.currentMediaItemIndex ?: -1))
                             val queueRowColor by animateColorAsState(
                                 when {
                                     isDragging -> palette.primary.copy(alpha = .28f)
