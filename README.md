@@ -140,7 +140,7 @@ The iOS track will use native Apple frameworks and target feature parity while r
 ### Signing and releases
 Release builds read their key from environment variables: `LUNA_KEYSTORE_PATH`, `LUNA_KEYSTORE_PASSWORD`, `LUNA_KEY_ALIAS` and `LUNA_KEY_PASSWORD`. In GitHub Actions these come from repository secrets (`LUNA_KEYSTORE_BASE64`, `LUNA_KEYSTORE_PASSWORD`, `LUNA_KEY_ALIAS`, `LUNA_KEY_PASSWORD`). Keep a private backup of the keystore: losing it means updates can no longer install over existing installs.
 
-To publish a release, create a tag such as `v0.2.0` (from the GitHub Releases page or `git tag v0.2.0 && git push origin v0.2.0`). The **Release** workflow builds the signed APK, checks its signature and attaches `LUNA-v0.2.0.apk` to a GitHub release. The tag sets `versionName`, and the workflow run number sets `versionCode`.
+To publish a release, create a tag such as `v0.2.0` (from the GitHub Releases page or `git tag v0.2.0 && git push origin v0.2.0`). The **Release** workflow builds and verifies the signed Android APK, then builds an **unsigned** iOS IPA on macOS CI and attaches it with a SHA-256 checksum. The iOS IPA must be signed by each recipient with their own Apple ID before installation; free personal provisioning generally needs refreshing every seven days. The tag sets Android `versionName`, and the workflow run number sets `versionCode`.
 
 First build requires internet for Gradle dependencies. Lyrics are looked up on demand through LRCLIB, with lyrics.ovh as a fallback, using track metadata only; music playback and library scanning stay on device.
 
