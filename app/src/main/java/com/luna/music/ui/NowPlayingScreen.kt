@@ -656,9 +656,6 @@ fun NowPlayingScreen(
                             Icon(Icons.Default.SkipNext, contentDescription = "Next track", tint = palette.onBackground, modifier = Modifier.size(32.dp))
                         }
                         BouncyIconButton(onClick = {
-                            // A manual repeat choice takes precedence over shuffle's automatic
-                            // Repeat All default and must not be overwritten when shuffle is disabled.
-                            repeatAllWasEnabledForShuffle = false
                             controller?.repeatMode = when (repeatModeState) {
                                 Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
                                 Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
