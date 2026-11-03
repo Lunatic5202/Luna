@@ -436,8 +436,8 @@ class MainActivity : ComponentActivity() {
                         onBack = { showNowPlaying = false },
                         openDrawer = openDrawer,
                         onToggle = { if (mediaController?.isPlaying == true) mediaController?.pause() else mediaController?.play() },
-                        onNext = { mediaController?.seekToNextMediaItem() },
-                        onPrevious = { mediaController?.seekToPreviousMediaItem() }
+                        onNext = { mediaController?.seekToNext() },
+                        onPrevious = { mediaController?.seekToPrevious() }
                     )
                     } else {
                     AnimatedContent(
@@ -492,11 +492,11 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                         next = {
-                            mediaController?.seekToNextMediaItem()
+                            mediaController?.seekToNext()
                             isPlaying = true
                         },
                         previous = {
-                            mediaController?.seekToPreviousMediaItem()
+                            mediaController?.seekToPrevious()
                             isPlaying = true
                         }
                     )
