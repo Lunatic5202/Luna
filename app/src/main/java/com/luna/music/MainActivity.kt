@@ -146,6 +146,8 @@ private data class LibraryDisplayData(
 class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_OPEN_NOW_PLAYING = "com.luna.music.OPEN_NOW_PLAYING"
+        private const val STATE_NOW_PLAYING = "state_now_playing"
+        private const val STATE_SECTION = "state_section"
     }
 
     private var mediaController: MediaController? = null
@@ -295,7 +297,16 @@ class MainActivity : ComponentActivity() {
         val splash = installSplashScreen()
         splash.setOnExitAnimationListener { it.remove() }
         super.onCreate(savedInstanceState)
-        showNowPlaying = intent.getBooleanExtra(EXTRA_OPEN_NOW_PLAYING, false)
+        // After rotation the activity is rebuilt: restore where the user was instead of
+        // re-reading the launch intent, which would reopen a player they had closed.
+        if (savedInstanceState != null) {
+            showNowPlaying = savedInstanceState.getBoolean(STATE_NOW_PLAYING, false)
+            currentSection = LunaSection.entries.getOrElse(
+                savedInstanceState.getInt(STATE_SECTION, 0)
+            ) { LunaSection.Library }
+        } else {
+            showNowPlaying = intent.getBooleanExtra(EXTRA_OPEN_NOW_PLAYING, false)
+        }
         repository = MusicRepository(this)
         comboRepository = ComboRepository(this)
         combos = comboRepository.load()
@@ -568,6 +579,12 @@ class MainActivity : ComponentActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
         )
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(STATE_NOW_PLAYING, showNowPlaying)
+        outState.putInt(STATE_SECTION, currentSection.ordinal)
     }
 
     override fun onNewIntent(intent: android.content.Intent) {
