@@ -1,6 +1,6 @@
 # LUNA for iOS — Development Plan
 
-> **Status:** planned; implementation has not started  
+> **Status:** iOS 0.1 in progress; project scaffold, CI and unit-test baseline are in, playback is not  
 > **Platform:** iPhone first  
 > **Parity target:** full LUNA feature parity, implemented with native Apple frameworks  
 > **UI:** SwiftUI · **Language:** Swift  
@@ -23,10 +23,10 @@ Bring the LUNA experience to iPhone without mechanically copying Android layouts
 
 ### Development without a local Mac
 
-- [ ] Create a macOS GitHub Actions workflow for iOS builds and tests.
-- [ ] Choose and pin an Xcode version and macOS runner after confirming the available hosted runner image.
-- [ ] Decide on a project generator (XcodeGen or a checked-in Xcode project) and document reproducible project generation.
-- [ ] Run Swift package/unit tests and simulator build/tests in CI.
+- [x] Create a macOS GitHub Actions workflow for iOS builds and tests.
+- [x] Choose and pin an Xcode version and macOS runner after confirming the available hosted runner image. (Xcode 16.4 on `macos-15`; the workflow falls back to the image default if 16.4 disappears.)
+- [x] Decide on a project generator (XcodeGen or a checked-in Xcode project) and document reproducible project generation. (XcodeGen; the `.xcodeproj` is generated, see the header of `ios/Project.yml`.)
+- [x] Run Swift package/unit tests and simulator build/tests in CI.
 - [ ] Arrange access to a physical Mac and iPhone before beta/release validation.
 - [ ] Confirm the repository's GitHub Actions minutes and macOS runner availability/limits before relying on CI as the only build environment.
 
@@ -34,7 +34,7 @@ A hosted macOS runner can compile and run simulator tests, but it does not provi
 
 ### Supported OS baseline
 
-- [ ] Set an initial deployment target of iOS 17 or later, subject to checking the selected Xcode toolchain and the actual audience/device needs.
+- [x] Set an initial deployment target of iOS 17 or later, subject to checking the selected Xcode toolchain and the actual audience/device needs.
 - [ ] Document the minimum supported iOS version in the app and README once the project is created.
 - [ ] Keep availability checks around APIs newer than the minimum target.
 
@@ -116,7 +116,7 @@ This is a proposed layout, not an existing directory tree. Adjust it to the proj
 
 ### Foundation and onboarding
 
-- [ ] SwiftUI app shell, navigation, app icon, launch experience, and LUNA typography.
+- [ ] SwiftUI app shell, navigation, app icon, launch experience, and LUNA typography. (Shell, palette tokens and a placeholder icon are in; navigation, launch screen and typography are not.)
 - [ ] Permission/onboarding explanations before requesting media-library access.
 - [ ] Files picker for importing audio and selecting folders.
 - [ ] Clear source labels so users know whether a track came from Files or the synced media library.

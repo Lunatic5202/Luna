@@ -18,3 +18,9 @@ captures/
 # OS files
 .DS_Store
 Thumbs.db
+
+# iOS: the Xcode project is generated from ios/Project.yml
+ios/LUNA.xcodeproj/
+xcuserdata/
+DerivedData/
+*.xcresult
