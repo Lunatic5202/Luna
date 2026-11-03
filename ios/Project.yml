@@ -23,6 +23,12 @@ targets:
     platform: iOS
     sources:
       - path: LUNA
+    info:
+      path: LUNA/Resources/Info.plist
+      properties:
+        # Lets playback continue with the screen locked or the app in the background.
+        UIBackgroundModes:
+          - audio
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.luna.music
