@@ -5,11 +5,12 @@ import UniformTypeIdentifiers
 struct RootView: View {
     @EnvironmentObject private var library: LibraryViewModel
     @EnvironmentObject private var player: PlaybackCoordinator
+    @EnvironmentObject private var theme: PaletteStore
 
     @State private var showImporter = false
     @State private var showNowPlaying = false
 
-    private let palette = LunaPalette.fallback
+    private var palette: LunaPalette { theme.palette }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -34,6 +35,10 @@ struct RootView: View {
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                     .frame(maxHeight: .infinity)
             }
+        }
+        .task(id: player.currentTrack?.id) {
+            let track = player.currentTrack
+            await theme.update(for: track, url: track.flatMap { library.url(for: $0) })
         }
         .fileImporter(
             isPresented: $showImporter,
