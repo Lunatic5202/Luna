@@ -16,7 +16,6 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation("org.jetbrains.compose.runtime:runtime:1.9.0")
             implementation("org.jetbrains.compose.ui:ui-graphics:1.9.0")
         }
     }
