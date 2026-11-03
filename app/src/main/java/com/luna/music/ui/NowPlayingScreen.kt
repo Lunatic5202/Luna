@@ -228,10 +228,6 @@ fun NowPlayingScreen(
     var repeatModeState by remember(controller) {
         mutableIntStateOf(controller?.repeatMode ?: Player.REPEAT_MODE_OFF)
     }
-    // Shuffle should keep a library-wide mix going. Remember whether Repeat All was enabled
-    // automatically so turning shuffle back off can restore the user's previous Repeat Off state.
-    var repeatAllWasEnabledForShuffle by remember(controller) { mutableStateOf(false) }
-
     DisposableEffect(controller) {
         val listener = object : Player.Listener {
             override fun onTimelineChanged(timeline: Timeline, reason: Int) {
@@ -632,22 +628,7 @@ fun NowPlayingScreen(
                             animationSpec = tween(240),
                             label = "shuffle-state"
                         )
-                        BouncyIconButton(onClick = {
-                            val player = controller ?: return@BouncyIconButton
-                            val enablingShuffle = !shuffleOn
-                            if (enablingShuffle) {
-                                if (player.repeatMode == Player.REPEAT_MODE_OFF) {
-                                    player.repeatMode = Player.REPEAT_MODE_ALL
-                                    repeatAllWasEnabledForShuffle = true
-                                }
-                            } else if (repeatAllWasEnabledForShuffle &&
-                                player.repeatMode == Player.REPEAT_MODE_ALL
-                            ) {
-                                player.repeatMode = Player.REPEAT_MODE_OFF
-                                repeatAllWasEnabledForShuffle = false
-                            }
-                            player.shuffleModeEnabled = enablingShuffle
-                        }) {
+                        BouncyIconButton(onClick = { controller?.shuffleModeEnabled = !shuffleOn }) {
                             Icon(Icons.Default.Shuffle, contentDescription = "Toggle shuffle", tint = shuffleTint)
                         }
                         BouncyIconButton(onClick = onPrevious) {
