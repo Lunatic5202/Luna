@@ -76,6 +76,9 @@ jobs:
           3. If Play Protect says "unrecognized app", tap **More details → Install anyway**. LUNA is open source and signed with the developer's own key.
 
           Updates install straight over the previous version.
+
+          ## iOS (unsigned IPA)
+          The iOS asset is an **unsigned build**, not a ready-to-install app. Each recipient must sign it with their own Apple ID using a compatible sideloading tool. Free Apple ID provisioning generally expires after seven days and must be refreshed. No shared signing credentials are provided. See the repository's iOS sideloading guide for details.
           NOTES
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" "LUNA-${GITHUB_REF_NAME}.apk" --clobber
