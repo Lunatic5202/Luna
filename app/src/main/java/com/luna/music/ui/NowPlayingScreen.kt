@@ -222,10 +222,27 @@ fun NowPlayingScreen(
         }
     }
 
+    // The controller is not Compose state, so shuffle/repeat are mirrored here via its listener.
+    // Reading controller.shuffleModeEnabled directly never redrew the buttons.
+    var shuffleOn by remember(controller) { mutableStateOf(controller?.shuffleModeEnabled == true) }
+    var repeatModeState by remember(controller) {
+        mutableIntStateOf(controller?.repeatMode ?: Player.REPEAT_MODE_OFF)
+    }
+
     DisposableEffect(controller) {
         val listener = object : Player.Listener {
             override fun onTimelineChanged(timeline: Timeline, reason: Int) {
                 if (draggedQueueKey == null) queueItems = readQueueItems(controller)
+            }
+
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                shuffleOn = shuffleModeEnabled
+                // The upcoming tracks differ once the order is shuffled.
+                if (draggedQueueKey == null) queueItems = readQueueItems(controller)
+            }
+
+            override fun onRepeatModeChanged(repeatMode: Int) {
+                repeatModeState = repeatMode
             }
         }
         controller?.addListener(listener)
@@ -601,11 +618,11 @@ fun NowPlayingScreen(
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         val shuffleTint by animateColorAsState(
-                            if (controller?.shuffleModeEnabled == true) palette.primary else palette.onBackground.copy(alpha = .55f),
+                            if (shuffleOn) palette.primary else palette.onBackground.copy(alpha = .55f),
                             animationSpec = tween(240),
                             label = "shuffle-state"
                         )
-                        BouncyIconButton(onClick = { controller?.shuffleModeEnabled = !(controller?.shuffleModeEnabled ?: false) }) {
+                        BouncyIconButton(onClick = { controller?.shuffleModeEnabled = !shuffleOn }) {
                             Icon(Icons.Default.Shuffle, contentDescription = "Toggle shuffle", tint = shuffleTint)
                         }
                         BouncyIconButton(onClick = onPrevious) {
@@ -633,13 +650,13 @@ fun NowPlayingScreen(
                             Icon(Icons.Default.SkipNext, contentDescription = "Next track", tint = palette.onBackground, modifier = Modifier.size(32.dp))
                         }
                         BouncyIconButton(onClick = {
-                            controller?.repeatMode = when (controller?.repeatMode) {
+                            controller?.repeatMode = when (repeatModeState) {
                                 Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
                                 Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
                                 else -> Player.REPEAT_MODE_OFF
                             }
                         }) {
-                            val repeat = controller?.repeatMode ?: Player.REPEAT_MODE_OFF
+                            val repeat = repeatModeState
                             val repeatTint by animateColorAsState(
                                 if (repeat == Player.REPEAT_MODE_OFF) palette.onBackground.copy(alpha = .55f) else palette.primary,
                                 animationSpec = tween(240),

@@ -18,14 +18,30 @@ class AudioImportRepository(context: Context) {
     private val appContext = context.applicationContext
     private val resolver = appContext.contentResolver
 
-    data class ImportResult(val imported: Int, val skipped: Int)
+    data class ImportResult(val imported: Int, val skipped: Int, val duplicates: Int = 0)
 
     suspend fun importAudio(uris: List<Uri>): ImportResult = withContext(Dispatchers.IO) {
         var imported = 0
         var skipped = 0
+        var duplicates = 0
+        val seenInThisBatch = mutableSetOf<String>()
 
         for (uri in uris) {
+            // Picked from the system "Audio" list: the file is already in MediaStore, so it is
+            // already in the library. Copying it would show every song twice.
+            if (isAlreadyInMediaStore(uri)) {
+                duplicates++
+                continue
+            }
             val displayName = queryDisplayName(uri)
+            val size = querySize(uri)
+            if (size > 0L) {
+                val batchKey = "${displayName.lowercase(Locale.ROOT)}|$size"
+                if (!seenInThisBatch.add(batchKey) || libraryHasCopy(displayName, size)) {
+                    duplicates++
+                    continue
+                }
+            }
             val extension = displayName.substringAfterLast('.', "").lowercase(Locale.ROOT)
             val detectedMimeType = resolver.getType(uri)
             val mimeType = detectedMimeType?.takeIf { it.startsWith("audio/") } ?: mimeTypeFor(extension)
@@ -72,7 +88,41 @@ class AudioImportRepository(context: Context) {
             }
         }
 
-        ImportResult(imported, skipped)
+        ImportResult(imported, skipped, duplicates)
+    }
+
+    /** True for picker URIs backed by MediaStore audio, e.g. .../document/audio:1234. */
+    private fun isAlreadyInMediaStore(uri: Uri): Boolean {
+        if (uri.authority == "com.android.providers.media.documents") {
+            return uri.lastPathSegment?.startsWith("audio:") == true
+        }
+        return uri.authority == MediaStore.AUTHORITY
+    }
+
+    private fun querySize(uri: Uri): Long {
+        resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val index = cursor.getColumnIndex(OpenableColumns.SIZE)
+                if (index >= 0 && !cursor.isNull(index)) return cursor.getLong(index)
+            }
+        }
+        return -1L
+    }
+
+    /** Same file name (original or as LUNA would save it) and exact byte size already in MediaStore. */
+    private fun libraryHasCopy(displayName: String, size: Long): Boolean {
+        val names = setOf(displayName, safeDisplayName(displayName)).toTypedArray()
+        val selection = "${MediaStore.Audio.Media.SIZE} = ? AND " +
+            "${MediaStore.Audio.Media.DISPLAY_NAME} IN (${names.joinToString { "?" }})"
+        return runCatching {
+            resolver.query(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Audio.Media._ID),
+                selection,
+                arrayOf(size.toString(), *names),
+                null
+            )?.use { it.count > 0 } ?: false
+        }.getOrDefault(false)
     }
 
     private fun queryDisplayName(uri: Uri): String {
