@@ -1,14 +1,15 @@
 # LUNA — Active TODO
 
 > **Current release:** 1.0.0  
-> **Working toward:** 1.1.0 — The Experience  
+> **Patch release in preparation:** 1.0.1 — Maintenance & Reliability  
+> **Next feature milestone:** 1.1.0 — The Experience  
 > **Status:** planning baseline created 2026-11-02
 
 This is the short, execution-focused task board. The [Product Roadmap](ROADMAP.md) contains the longer-term milestones, acceptance criteria, and release gates.
 
 Only check a task after the work is implemented, reviewed, and verified. For device-dependent behavior, record the device/Android version and test result in the relevant issue or pull request.
 
-## Now — P0: verify and stabilize 1.0.0
+## Now — P0: prepare and verify 1.0.1
 
 - [ ] Reproduce the reported album-art loading delay during library scrolling.
 - [ ] Measure mini-player to full-player transition performance.
@@ -20,7 +21,7 @@ Only check a task after the work is implemented, reviewed, and verified. For dev
 - [ ] Review current CI status and run the debug and signed release build paths.
 - [ ] Capture a known-good 1.0.0 baseline: device, Android version, build identifier, and any known limitations.
 
-## Next — P1: 1.1.0 core work
+## Next — P1: 1.1.0 core work (after the 1.0.1 patch)
 
 - [ ] Implement a Folders library view.
 - [ ] Implement persistent queue editing and restoration.
