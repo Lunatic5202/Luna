@@ -52,6 +52,32 @@ class LunaPlaybackService : MediaSessionService() {
         // A file that can't be decoded (deleted, corrupt) skips ahead instead of stalling.
         player.addListener(object : Player.Listener {
             private var failedInARow = 0
+            private var repeatAllWasEnabledByShuffle = false
+            private var changingRepeatForShuffle = false
+
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                if (shuffleModeEnabled && player.repeatMode == Player.REPEAT_MODE_OFF) {
+                    // A shuffled library session should keep going after its first cycle.
+                    repeatAllWasEnabledByShuffle = true
+                    changingRepeatForShuffle = true
+                    player.repeatMode = Player.REPEAT_MODE_ALL
+                    changingRepeatForShuffle = false
+                } else if (!shuffleModeEnabled && repeatAllWasEnabledByShuffle) {
+                    // Restore Repeat Off only if the user did not choose another repeat mode.
+                    if (player.repeatMode == Player.REPEAT_MODE_ALL) {
+                        changingRepeatForShuffle = true
+                        player.repeatMode = Player.REPEAT_MODE_OFF
+                        changingRepeatForShuffle = false
+                    }
+                    repeatAllWasEnabledByShuffle = false
+                }
+            }
+
+            override fun onRepeatModeChanged(repeatMode: Int) {
+                if (!changingRepeatForShuffle) {
+                    repeatAllWasEnabledByShuffle = false
+                }
+            }
 
             override fun onPlayerError(error: PlaybackException) {
                 failedInARow++
