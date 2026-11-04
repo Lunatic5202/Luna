@@ -4,6 +4,7 @@ import SwiftUI
 struct LunaApp: App {
     @StateObject private var library: LibraryViewModel
     @StateObject private var player: PlaybackCoordinator
+    @StateObject private var theme: PaletteStore
     // Held for the life of the app so their notification observers and command targets stay alive.
     private let audioSession: AudioSessionController
     private let remoteCommands: RemoteCommandController
@@ -29,6 +30,7 @@ struct LunaApp: App {
 
         _library = StateObject(wrappedValue: library)
         _player = StateObject(wrappedValue: player)
+        _theme = StateObject(wrappedValue: PaletteStore())
         audioSession = session
         remoteCommands = RemoteCommandController(coordinator: player)
     }
@@ -38,6 +40,7 @@ struct LunaApp: App {
             RootView()
                 .environmentObject(library)
                 .environmentObject(player)
+                .environmentObject(theme)
                 .preferredColorScheme(.dark)
         }
     }
