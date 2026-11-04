@@ -5,6 +5,7 @@ struct TrackRow: View {
     let palette: LunaPalette
     let isCurrent: Bool
     let isPlaying: Bool
+    var isFavorite = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -22,6 +23,13 @@ struct TrackRow: View {
             }
 
             Spacer(minLength: 8)
+
+            if isFavorite {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(palette.secondary.color)
+                    .accessibilityHidden(true)
+            }
 
             if isCurrent {
                 Image(systemName: isPlaying ? "waveform" : "pause.fill")
@@ -42,6 +50,7 @@ struct TrackRow: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(track.displayTitle) by \(track.displayArtist)")
+        .accessibilityValue(isFavorite ? "Favorite" : "")
         .accessibilityAddTraits(.isButton)
     }
 }

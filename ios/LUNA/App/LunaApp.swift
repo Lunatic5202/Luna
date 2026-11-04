@@ -6,6 +6,7 @@ struct LunaApp: App {
     @StateObject private var player: PlaybackCoordinator
     @StateObject private var theme: PaletteStore
     @StateObject private var combos: ComboStore
+    @StateObject private var favorites: FavoritesStore
     // Held for the life of the app so their notification observers and command targets stay alive.
     private let audioSession: AudioSessionController
     private let remoteCommands: RemoteCommandController
@@ -33,6 +34,7 @@ struct LunaApp: App {
         _player = StateObject(wrappedValue: player)
         _theme = StateObject(wrappedValue: PaletteStore())
         _combos = StateObject(wrappedValue: ComboStore.makeDefault())
+        _favorites = StateObject(wrappedValue: FavoritesStore.makeDefault())
         audioSession = session
         remoteCommands = RemoteCommandController(coordinator: player)
     }
@@ -44,6 +46,7 @@ struct LunaApp: App {
                 .environmentObject(player)
                 .environmentObject(theme)
                 .environmentObject(combos)
+                .environmentObject(favorites)
                 .preferredColorScheme(.dark)
         }
     }
