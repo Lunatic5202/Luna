@@ -80,4 +80,8 @@ final class LibraryQueryTests: XCTestCase {
     func testSongsHaveNoGroups() {
         XCTAssertTrue(LibraryQuery.groups(from: sample, by: .songs).isEmpty)
     }
+
+    func testCombosAreNotDerivedFromMetadata() {
+        XCTAssertTrue(LibraryQuery.groups(from: sample, by: .combos).isEmpty)
+    }
 }
