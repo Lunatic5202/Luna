@@ -26,9 +26,9 @@ private final class ManualScheduler {
 
     var scheduler: SleepScheduler {
         { [unowned self] delay, action in
-            delays.append(delay)
-            actions.append(action)
-            return { [unowned self] in cancelled += 1 }
+            self.delays.append(delay)
+            self.actions.append(action)
+            return { [unowned self] in self.cancelled += 1 }
         }
     }
 
@@ -43,7 +43,8 @@ final class SleepTimerTests: XCTestCase {
 
     override func setUp() async throws {
         manual = ManualScheduler()
-        timer = SleepTimer(now: { [unowned self] in start }, schedule: manual.scheduler)
+        let fixedNow = start
+        timer = SleepTimer(now: { fixedNow }, schedule: manual.scheduler)
     }
 
     func testStartsOff() {
