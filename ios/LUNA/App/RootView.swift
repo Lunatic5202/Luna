@@ -6,6 +6,7 @@ struct RootView: View {
     @EnvironmentObject private var library: LibraryViewModel
     @EnvironmentObject private var player: PlaybackCoordinator
     @EnvironmentObject private var theme: PaletteStore
+    @EnvironmentObject private var favorites: FavoritesStore
 
     @State private var showImporter = false
     @State private var showNowPlaying = false
@@ -51,6 +52,7 @@ struct RootView: View {
             NowPlayingView(palette: palette)
                 .environmentObject(player)
                 .environmentObject(library)
+                .environmentObject(favorites)
                 .presentationDragIndicator(.visible)
         }
         .alert(

@@ -3,6 +3,7 @@ import SwiftUI
 struct NowPlayingView: View {
     @EnvironmentObject private var player: PlaybackCoordinator
     @EnvironmentObject private var library: LibraryViewModel
+    @EnvironmentObject private var favorites: FavoritesStore
     @State private var showQueue = false
     @Environment(\.dismiss) private var dismiss
     let palette: LunaPalette
@@ -14,6 +15,7 @@ struct NowPlayingView: View {
             if let track = player.currentTrack {
                 VStack(spacing: 22) {
                     HStack {
+                        favoriteButton(for: track)
                         Spacer()
                         SleepTimerButton(timer: player.sleepTimer, palette: palette)
                     }
@@ -72,7 +74,21 @@ struct NowPlayingView: View {
         .accessibilityLabel("Up next queue")
     }
 
+
+    private func favoriteButton(for track: Track) -> some View {
+        let isFavorite = favorites.contains(track.id)
+        return Button { favorites.toggle(track.id) } label: {
+            Image(systemName: isFavorite ? "heart.fill" : "heart")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(isFavorite ? palette.secondary.color : palette.onBackground.color)
+                .frame(width: 44, height: 36)
+                .background(Color.white.opacity(0.08), in: Capsule())
+        }
+        .accessibilityLabel(isFavorite ? "Remove from favorites" : "Add to favorites")
+    }
+
     private var transportControls: some View {
+
         HStack {
             Button { player.toggleShuffle() } label: {
                 Image(systemName: "shuffle")

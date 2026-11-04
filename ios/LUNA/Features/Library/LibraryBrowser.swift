@@ -10,9 +10,11 @@ struct LibraryBrowser: View {
     @EnvironmentObject private var player: PlaybackCoordinator
     @EnvironmentObject private var library: LibraryViewModel
     @EnvironmentObject private var combos: ComboStore
+    @EnvironmentObject private var favorites: FavoritesStore
 
     @AppStorage("library.grouping") private var groupingRaw = LibraryGrouping.songs.rawValue
     @AppStorage("library.sort") private var sortRaw = LibrarySort.title.rawValue
+    @AppStorage("library.favoritesOnly") private var favoritesOnly = false
     @State private var search = ""
     @State private var newComboTrack: Track?
     @State private var newComboName = ""
@@ -24,8 +26,13 @@ struct LibraryBrowser: View {
     private var grouping: LibraryGrouping { LibraryGrouping(rawValue: groupingRaw) ?? .songs }
     private var sort: LibrarySort { LibrarySort(rawValue: sortRaw) ?? .title }
 
+    /// The songs every view draws from: the whole library, or only the hearted ones.
+    private var pool: [Track] {
+        favoritesOnly ? tracks.filter { favorites.contains($0.id) } : tracks
+    }
+
     var body: some View {
-        let visible = LibraryQuery.sort(LibraryQuery.filter(tracks, search: search), by: sort)
+        let visible = LibraryQuery.sort(LibraryQuery.filter(pool, search: search), by: sort)
         VStack(spacing: 10) {
             searchField
             HStack(spacing: 10) {
@@ -33,6 +40,7 @@ struct LibraryBrowser: View {
                     ForEach(LibraryGrouping.allCases) { Text($0.label).tag($0.rawValue) }
                 }
                 .pickerStyle(.segmented)
+                favoritesToggle
                 sortMenu
             }
             .padding(.horizontal, 14)
@@ -93,7 +101,23 @@ struct LibraryBrowser: View {
         .padding(.horizontal, 14)
     }
 
+
+    private var favoritesToggle: some View {
+        Button {
+            favoritesOnly.toggle()
+        } label: {
+            Image(systemName: favoritesOnly ? "heart.fill" : "heart")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(favoritesOnly ? palette.secondary.color : palette.onBackground.color)
+                .frame(width: 40, height: 32)
+                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .accessibilityLabel("Favorites only")
+        .accessibilityValue(favoritesOnly ? "On" : "Off")
+    }
+
     private var sortMenu: some View {
+
         Menu {
             Picker("Sort by", selection: $sortRaw) {
                 ForEach(LibrarySort.allCases) { Text($0.label).tag($0.rawValue) }
@@ -138,12 +162,21 @@ struct LibraryBrowser: View {
             track: track,
             palette: palette,
             isCurrent: player.currentTrack?.id == track.id,
-            isPlaying: player.isPlaying
+            isPlaying: player.isPlaying,
+            isFavorite: favorites.contains(track.id)
         )
         .onTapGesture {
             player.play(tracks: queue, startingAt: track)
         }
         .contextMenu {
+            Button {
+                favorites.toggle(track.id)
+            } label: {
+                Label(
+                    favorites.contains(track.id) ? "Remove from Favorites" : "Add to Favorites",
+                    systemImage: favorites.contains(track.id) ? "heart.slash" : "heart"
+                )
+            }
             Button {
                 player.playNext(track)
             } label: {
@@ -166,6 +199,7 @@ struct LibraryBrowser: View {
             Button(role: .destructive) {
                 library.remove(track)
                 combos.forget(track.id)
+                favorites.forget(track.id)
                 player.trackWasRemoved(track.id)
             } label: {
                 Label("Remove from LUNA", systemImage: "trash")
@@ -186,7 +220,7 @@ struct LibraryBrowser: View {
     private var comboEntries: [ComboEntry] {
         let searching = !search.trimmingCharacters(in: .whitespaces).isEmpty
         return combos.combos.compactMap { combo in
-            let shown = LibraryQuery.filter(combos.tracks(in: combo, from: tracks), search: search)
+            let shown = LibraryQuery.filter(combos.tracks(in: combo, from: pool), search: search)
             return searching && shown.isEmpty ? nil : ComboEntry(combo: combo, tracks: shown)
         }
     }
@@ -330,16 +364,23 @@ struct LibraryBrowser: View {
         .accessibilityAddTraits(.isHeader)
     }
 
+    /// Favorites-only with nothing hearted and no search typed: an invitation, not an error.
+    private var showingEmptyFavorites: Bool {
+        favoritesOnly && search.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
     private var noMatches: some View {
         VStack(spacing: 8) {
             Spacer()
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 34, weight: .light))
                 .foregroundStyle(palette.secondary.color)
-            Text("No matches")
+            Text(showingEmptyFavorites ? "No favorites yet" : "No matches")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(palette.onBackground.color)
-            Text("Nothing in your library matches \u{201C}\(search)\u{201D}.")
+            Text(showingEmptyFavorites
+                ? "Tap the heart on a song to keep it here."
+                : "Nothing in your library matches \u{201C}\(search)\u{201D}.")
                 .font(.system(size: 13))
                 .foregroundStyle(palette.muted.color)
                 .multilineTextAlignment(.center)
