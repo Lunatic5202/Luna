@@ -110,4 +110,76 @@ struct PlaybackQueue: Equatable {
         position = target
         return current
     }
+
+    // MARK: - Editing the upcoming list
+
+    private var upcomingStart: Int { position + 1 }
+
+    /// Removes tracks by their offset within `upcoming`. The current track is never affected.
+    mutating func removeUpcoming(at offsets: IndexSet) {
+        guard order.indices.contains(position) else { return }
+        let positions = Set(offsets.map { upcomingStart + $0 }.filter { order.indices.contains($0) })
+        guard !positions.isEmpty else { return }
+        let removedTracks = Set(positions.map { order[$0] })
+        var remap: [Int: Int] = [:]
+        var kept: [Track] = []
+        for (index, track) in tracks.enumerated() where !removedTracks.contains(index) {
+            remap[index] = kept.count
+            kept.append(track)
+        }
+        order = order.enumerated().compactMap { offset, trackIndex in
+            positions.contains(offset) ? nil : remap[trackIndex]
+        }
+        tracks = kept
+        normalizeIfLinear()
+    }
+
+    mutating func clearUpcoming() {
+        removeUpcoming(at: IndexSet(integersIn: 0..<upcoming.count))
+    }
+
+    /// Moves upcoming tracks, using the same offsets as SwiftUI's `onMove`: `destination` is
+    /// an insertion point in the list as it was before the move.
+    mutating func moveUpcoming(from source: IndexSet, to destination: Int) {
+        guard order.indices.contains(position) else { return }
+        var items = Array(order[upcomingStart...])
+        let valid = source.filter { items.indices.contains($0) }
+        guard !valid.isEmpty else { return }
+        let moved = valid.map { items[$0] }
+        let insertAt = destination - valid.filter { $0 < destination }.count
+        for index in valid.sorted(by: >) { items.remove(at: index) }
+        items.insert(contentsOf: moved, at: min(max(insertAt, 0), items.count))
+        order = Array(order[..<upcomingStart]) + items
+        normalizeIfLinear()
+    }
+
+    /// Adds `track` to the upcoming list (the end when `offset` is nil). A copy that is already
+    /// queued is moved rather than duplicated, and the playing track is left alone.
+    mutating func insertUpcoming(_ track: Track, at offset: Int? = nil) {
+        guard order.indices.contains(position), current?.id != track.id else { return }
+        if let existing = upcoming.firstIndex(where: { $0.id == track.id }) {
+            removeUpcoming(at: IndexSet(integer: existing))
+        }
+        tracks.append(track)
+        let target = min(max(offset ?? upcoming.count, 0), upcoming.count)
+        order.insert(tracks.count - 1, at: upcomingStart + target)
+        normalizeIfLinear()
+    }
+
+    /// Makes an upcoming track current. Unlike `jump(to:)` it never goes backwards.
+    @discardableResult
+    mutating func jumpToUpcoming(id: String) -> Track? {
+        guard order.indices.contains(position),
+              let offset = upcoming.firstIndex(where: { $0.id == id }) else { return nil }
+        position = upcomingStart + offset
+        return current
+    }
+
+    /// Without shuffle the queue *is* its order, so edits are written back into `tracks`. That
+    /// way a manual order survives turning shuffle on and off again.
+    private mutating func normalizeIfLinear() {
+        guard !shuffleEnabled else { return }
+        tracks = order.map { tracks[$0] }
+        order = Array(tracks.indices)
+    }
 }

@@ -2,6 +2,8 @@ import SwiftUI
 
 struct NowPlayingView: View {
     @EnvironmentObject private var player: PlaybackCoordinator
+    @EnvironmentObject private var library: LibraryViewModel
+    @State private var showQueue = false
     @Environment(\.dismiss) private var dismiss
     let palette: LunaPalette
 
@@ -34,6 +36,8 @@ struct NowPlayingView: View {
                     transportControls
                         .padding(.horizontal, 24)
 
+                    queueButton
+
                     Spacer(minLength: 8)
                 }
             }
@@ -41,6 +45,25 @@ struct NowPlayingView: View {
         .onChange(of: player.currentTrack == nil) { _, isEmpty in
             if isEmpty { dismiss() }
         }
+        .sheet(isPresented: $showQueue) {
+            QueueView(palette: palette)
+                .environmentObject(player)
+                .environmentObject(library)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+    }
+
+    private var queueButton: some View {
+        Button { showQueue = true } label: {
+            Label("Up next", systemImage: "list.bullet")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(palette.onBackground.color)
+                .padding(.horizontal, 16)
+                .frame(height: 36)
+                .background(Color.white.opacity(0.08), in: Capsule())
+        }
+        .accessibilityLabel("Up next queue")
     }
 
     private var transportControls: some View {
