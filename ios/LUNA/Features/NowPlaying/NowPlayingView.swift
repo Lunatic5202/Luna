@@ -5,6 +5,7 @@ struct NowPlayingView: View {
     @EnvironmentObject private var library: LibraryViewModel
     @EnvironmentObject private var favorites: FavoritesStore
     @State private var showQueue = false
+    @State private var showLyrics = false
     @Environment(\.dismiss) private var dismiss
     let palette: LunaPalette
 
@@ -44,7 +45,10 @@ struct NowPlayingView: View {
                     transportControls
                         .padding(.horizontal, 24)
 
-                    queueButton
+                    HStack(spacing: 10) {
+                        queueButton
+                        lyricsButton
+                    }
 
                     Spacer(minLength: 8)
                 }
@@ -60,6 +64,24 @@ struct NowPlayingView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showLyrics) {
+            LyricsView(palette: palette)
+                .environmentObject(player)
+                .presentationDragIndicator(.visible)
+        }
+    }
+
+
+    private var lyricsButton: some View {
+        Button { showLyrics = true } label: {
+            Label("Lyrics", systemImage: "text.quote")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(palette.onBackground.color)
+                .padding(.horizontal, 16)
+                .frame(height: 36)
+                .background(Color.white.opacity(0.08), in: Capsule())
+        }
+        .accessibilityLabel("Lyrics")
     }
 
     private var queueButton: some View {
