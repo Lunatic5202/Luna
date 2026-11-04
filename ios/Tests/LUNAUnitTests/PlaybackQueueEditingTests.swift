@@ -101,7 +101,8 @@ final class PlaybackQueueEditingTests: XCTestCase {
         var q = queue()
         q.insertUpcoming(track("e"), at: 0)
         XCTAssertEqual(ids(q.upcoming), ["e", "c", "d"])
-        XCTAssertEqual(q.count, 4)
+        // Moved, not duplicated: still a, b, c, d, e.
+        XCTAssertEqual(q.count, 5)
     }
 
     func testInsertingTheCurrentTrackDoesNothing() {
