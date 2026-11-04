@@ -15,7 +15,7 @@ enum LibrarySort: String, CaseIterable, Identifiable {
 }
 
 enum LibraryGrouping: String, CaseIterable, Identifiable {
-    case songs, albums, artists
+    case songs, albums, artists, combos
 
     var id: String { rawValue }
 
@@ -24,6 +24,7 @@ enum LibraryGrouping: String, CaseIterable, Identifiable {
         case .songs: return "Songs"
         case .albums: return "Albums"
         case .artists: return "Artists"
+        case .combos: return "Combos"
         }
     }
 }
@@ -66,9 +67,10 @@ enum LibraryQuery {
         }
     }
 
-    /// Albums or artists, alphabetical. `.songs` has no groups.
+    /// Albums or artists, alphabetical. `.songs` and `.combos` have no groups here.
     static func groups(from tracks: [Track], by grouping: LibraryGrouping) -> [TrackGroup] {
-        guard grouping != .songs else { return [] }
+        // Combos are the user's own lists and come from `ComboStore`, not from track metadata.
+        guard grouping == .albums || grouping == .artists else { return [] }
         var order: [String] = []
         var buckets: [String: [Track]] = [:]
         for track in tracks {
