@@ -23,10 +23,14 @@ final class PlaybackCoordinator: ObservableObject {
     @Published private(set) var shuffleEnabled = false
     @Published private(set) var repeatMode: RepeatMode = .off
     @Published private(set) var errorMessage: String?
+    /// Tracks after the current one, in playback order. Drives the queue sheet.
+    @Published private(set) var upcoming: [Track] = []
 
     let progress = PlaybackProgress()
 
-    private var queue = PlaybackQueue(tracks: [])
+    private var queue = PlaybackQueue(tracks: []) {
+        didSet { publishUpcoming() }
+    }
     private let engine: PlaybackEngine
     private let resolveURL: (Track) -> URL?
     private let nowPlaying: NowPlayingPublishing?
@@ -123,6 +127,32 @@ final class PlaybackCoordinator: ObservableObject {
     func cycleRepeat() {
         repeatMode = repeatMode.next
         queue.repeatMode = repeatMode
+    }
+
+    // MARK: - Queue editing
+
+    func jumpToUpcoming(_ id: String) {
+        guard queue.jumpToUpcoming(id: id) != nil else { return }
+        loadCurrent(autoplay: true)
+    }
+
+    func removeUpcoming(at offsets: IndexSet) { queue.removeUpcoming(at: offsets) }
+    func moveUpcoming(from source: IndexSet, to destination: Int) { queue.moveUpcoming(from: source, to: destination) }
+    func clearUpcoming() { queue.clearUpcoming() }
+    func playNext(_ track: Track) { enqueue(track, at: 0) }
+    func addToQueue(_ track: Track) { enqueue(track, at: nil) }
+
+    private func enqueue(_ track: Track, at offset: Int?) {
+        guard currentTrack != nil else {
+            play(tracks: [track], startingAt: track)
+            return
+        }
+        queue.insertUpcoming(track, at: offset)
+    }
+
+    private func publishUpcoming() {
+        let next = queue.upcoming
+        if next != upcoming { upcoming = next }
     }
 
     func stop() {

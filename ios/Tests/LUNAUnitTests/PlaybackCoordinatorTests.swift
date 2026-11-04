@@ -214,4 +214,50 @@ final class PlaybackCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.currentTrack?.id, "a")
         XCTAssertTrue(coordinator.isPlaying)
     }
+
+    // MARK: - Queue editing
+
+    func testUpcomingIsPublishedAndFollowsPlayback() {
+        coordinator.play(tracks: tracks, startingAt: tracks[0])
+        XCTAssertEqual(coordinator.upcoming.map(\.id), ["b", "c"])
+        coordinator.next()
+        XCTAssertEqual(coordinator.upcoming.map(\.id), ["c"])
+    }
+
+    func testRemovingUpcomingSkipsItOnNext() {
+        coordinator.play(tracks: tracks, startingAt: tracks[0])
+        coordinator.removeUpcoming(at: IndexSet(integer: 0))
+        XCTAssertEqual(coordinator.upcoming.map(\.id), ["c"])
+        coordinator.next()
+        XCTAssertEqual(coordinator.currentTrack?.id, "c")
+    }
+
+    func testJumpToUpcomingLoadsThatTrackAndKeepsPlaying() {
+        coordinator.play(tracks: tracks, startingAt: tracks[0])
+        coordinator.jumpToUpcoming("c")
+        XCTAssertEqual(coordinator.currentTrack?.id, "c")
+        XCTAssertTrue(engine.isPlaying)
+        XCTAssertTrue(coordinator.upcoming.isEmpty)
+    }
+
+    func testPlayNextAndAddToQueue() {
+        coordinator.play(tracks: Array(tracks.prefix(2)), startingAt: tracks[0])
+        let extra = Track(id: "x", title: "x", duration: 100, source: .files)
+        coordinator.addToQueue(extra)
+        XCTAssertEqual(coordinator.upcoming.map(\.id), ["b", "x"])
+        coordinator.playNext(extra)
+        XCTAssertEqual(coordinator.upcoming.map(\.id), ["x", "b"])
+    }
+
+    func testAddToQueueWhenNothingIsPlayingStartsIt() {
+        coordinator.addToQueue(tracks[2])
+        XCTAssertEqual(coordinator.currentTrack?.id, "c")
+        XCTAssertTrue(engine.isPlaying)
+    }
+
+    func testStopClearsUpcoming() {
+        coordinator.play(tracks: tracks, startingAt: tracks[0])
+        coordinator.stop()
+        XCTAssertTrue(coordinator.upcoming.isEmpty)
+    }
 }
