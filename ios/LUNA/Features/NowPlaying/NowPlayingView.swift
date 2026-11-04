@@ -11,6 +11,12 @@ struct NowPlayingView: View {
 
             if let track = player.currentTrack {
                 VStack(spacing: 22) {
+                    HStack {
+                        Spacer()
+                        SleepTimerButton(timer: player.sleepTimer, palette: palette)
+                    }
+                    .padding(.horizontal, 20)
+
                     Spacer(minLength: 8)
 
                     ArtworkView(track: track, size: 292, circular: true)

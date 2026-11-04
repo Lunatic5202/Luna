@@ -33,6 +33,9 @@ final class PlaybackCoordinator: ObservableObject {
     private let activateSession: () -> Void
     private let loadArtwork: (Track) async -> UIImage?
 
+    /// Stops playback after a countdown or at the end of the current song.
+    let sleepTimer: SleepTimer
+
     private var resumeAfterInterruption = false
     private var nowPlayingArtwork: (trackID: String, image: UIImage)?
 
@@ -41,19 +44,24 @@ final class PlaybackCoordinator: ObservableObject {
         resolveURL: @escaping (Track) -> URL?,
         nowPlaying: NowPlayingPublishing? = nil,
         activateSession: @escaping () -> Void = {},
-        loadArtwork: @escaping (Track) async -> UIImage? = { _ in nil }
+        loadArtwork: @escaping (Track) async -> UIImage? = { _ in nil },
+        sleepTimer: SleepTimer? = nil
     ) {
         self.engine = engine
         self.resolveURL = resolveURL
         self.nowPlaying = nowPlaying
         self.activateSession = activateSession
         self.loadArtwork = loadArtwork
+        self.sleepTimer = sleepTimer ?? SleepTimer()
 
         engine.onTimeUpdate = { [weak self] time in
             self?.handleTimeUpdate(time)
         }
         engine.onFinish = { [weak self] in
             self?.handleFinished()
+        }
+        self.sleepTimer.onFire = { [weak self] in
+            self?.pause()
         }
     }
 
@@ -62,6 +70,8 @@ final class PlaybackCoordinator: ObservableObject {
     /// Starts playing `track`, with `tracks` as the queue.
     func play(tracks: [Track], startingAt track: Track) {
         guard let index = tracks.firstIndex(where: { $0.id == track.id }) else { return }
+        // A leftover "end of song" from a session that has since stopped must not catch this one.
+        if currentTrack == nil { sleepTimer.cancel() }
         queue = PlaybackQueue(tracks: tracks, startIndex: index, shuffle: shuffleEnabled, repeatMode: repeatMode)
         loadCurrent(autoplay: true)
     }
@@ -186,6 +196,19 @@ final class PlaybackCoordinator: ObservableObject {
         errorMessage = "That song is no longer available."
     }
 
+    /// "End of this song": settle on the next track, paused, instead of playing on.
+    private func stopAfterSleepTimer() {
+        engine.pause()
+        isPlaying = false
+        if queue.advance(userInitiated: false) != nil {
+            loadCurrent(autoplay: false)
+        } else {
+            engine.seek(to: 0)
+            progress.position = 0
+            publishNowPlaying()
+        }
+    }
+
     private func restartCurrent() {
         engine.seek(to: 0)
         progress.position = 0
@@ -204,6 +227,10 @@ final class PlaybackCoordinator: ObservableObject {
     }
 
     private func handleFinished() {
+        if sleepTimer.consumeEndOfTrack() {
+            stopAfterSleepTimer()
+            return
+        }
         if repeatMode == .one {
             engine.seek(to: 0)
             engine.play()
