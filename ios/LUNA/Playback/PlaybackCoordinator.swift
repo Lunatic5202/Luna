@@ -15,6 +15,9 @@ final class PlaybackProgress: ObservableObject {
 /// `NowPlayingPublishing`.
 @MainActor
 final class PlaybackCoordinator: ObservableObject {
+    /// Seconds of real listening before a song counts as played (shorter songs: half their length).
+    static let playCountThreshold: TimeInterval = 20
+
     /// Previous restarts the current track when it is further in than this, like most players.
     static let restartThreshold: TimeInterval = 3
 
@@ -27,6 +30,12 @@ final class PlaybackCoordinator: ObservableObject {
     @Published private(set) var upcoming: [Track] = []
 
     let progress = PlaybackProgress()
+
+    /// Called once per play, after the listening threshold. Wired to the play-history store.
+    var onPlayCounted: ((Track) -> Void)?
+    private var listened: TimeInterval = 0
+    private var lastTick: TimeInterval?
+    private var countedCurrentPlay = false
 
     private var queue = PlaybackQueue(tracks: []) {
         didSet { publishUpcoming() }
@@ -209,6 +218,7 @@ final class PlaybackCoordinator: ObservableObject {
                 errorMessage = nil
                 activateSession()
                 currentTrack = track
+                resetPlayCounting()
                 engine.load(url: url)
                 progress.position = 0
                 progress.duration = track.duration
@@ -240,13 +250,36 @@ final class PlaybackCoordinator: ObservableObject {
     }
 
     private func restartCurrent() {
+        lastTick = nil
         engine.seek(to: 0)
         progress.position = 0
         publishNowPlaying()
     }
 
+    private func resetPlayCounting() {
+        listened = 0
+        lastTick = nil
+        countedCurrentPlay = false
+    }
+
+    /// Counts only continuous listening: a jump (seeking ahead) is not progress.
+    private func countListening(upTo time: TimeInterval) {
+        defer { lastTick = time }
+        guard !countedCurrentPlay, isPlaying, let track = currentTrack,
+              let last = lastTick, time > last, time - last <= 1.5 else { return }
+        listened += time - last
+        let threshold = track.duration > 0
+            ? min(Self.playCountThreshold, track.duration / 2)
+            : Self.playCountThreshold
+        if listened >= threshold {
+            countedCurrentPlay = true
+            onPlayCounted?(track)
+        }
+    }
+
     private func handleTimeUpdate(_ time: TimeInterval) {
         progress.position = time
+        countListening(upTo: time)
         if progress.duration <= 0 {
             let known = engine.duration
             if known > 0 {
@@ -262,6 +295,7 @@ final class PlaybackCoordinator: ObservableObject {
             return
         }
         if repeatMode == .one {
+            resetPlayCounting()
             engine.seek(to: 0)
             engine.play()
             progress.position = 0

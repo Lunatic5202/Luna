@@ -11,6 +11,7 @@ struct LibraryBrowser: View {
     @EnvironmentObject private var library: LibraryViewModel
     @EnvironmentObject private var combos: ComboStore
     @EnvironmentObject private var favorites: FavoritesStore
+    @EnvironmentObject private var playStats: PlayStatsStore
 
     @AppStorage("library.grouping") private var groupingRaw = LibraryGrouping.songs.rawValue
     @AppStorage("library.sort") private var sortRaw = LibrarySort.title.rawValue
@@ -32,7 +33,7 @@ struct LibraryBrowser: View {
     }
 
     var body: some View {
-        let visible = LibraryQuery.sort(LibraryQuery.filter(pool, search: search), by: sort)
+        let visible = LibraryQuery.sort(LibraryQuery.filter(pool, search: search), by: sort, stats: playStats.stats)
         VStack(spacing: 10) {
             searchField
             HStack(spacing: 10) {
@@ -200,6 +201,7 @@ struct LibraryBrowser: View {
                 library.remove(track)
                 combos.forget(track.id)
                 favorites.forget(track.id)
+                playStats.forget(track.id)
                 player.trackWasRemoved(track.id)
             } label: {
                 Label("Remove from LUNA", systemImage: "trash")

@@ -7,6 +7,7 @@ struct LunaApp: App {
     @StateObject private var theme: PaletteStore
     @StateObject private var combos: ComboStore
     @StateObject private var favorites: FavoritesStore
+    @StateObject private var playStats: PlayStatsStore
     // Held for the life of the app so their notification observers and command targets stay alive.
     private let audioSession: AudioSessionController
     private let remoteCommands: RemoteCommandController
@@ -24,6 +25,9 @@ struct LunaApp: App {
             }
         )
 
+        let stats = PlayStatsStore.makeDefault()
+        player.onPlayCounted = { track in stats.recordPlay(track.id) }
+
         session.onInterruptionBegan = { [weak player] in player?.interruptionBegan() }
         session.onInterruptionEnded = { [weak player] shouldResume in
             player?.interruptionEnded(shouldResume: shouldResume)
@@ -35,6 +39,7 @@ struct LunaApp: App {
         _theme = StateObject(wrappedValue: PaletteStore())
         _combos = StateObject(wrappedValue: ComboStore.makeDefault())
         _favorites = StateObject(wrappedValue: FavoritesStore.makeDefault())
+        _playStats = StateObject(wrappedValue: stats)
         audioSession = session
         remoteCommands = RemoteCommandController(coordinator: player)
     }
@@ -47,6 +52,7 @@ struct LunaApp: App {
                 .environmentObject(theme)
                 .environmentObject(combos)
                 .environmentObject(favorites)
+                .environmentObject(playStats)
                 .preferredColorScheme(.dark)
         }
     }
