@@ -1,7 +1,7 @@
 import Foundation
 
 enum LibrarySort: String, CaseIterable, Identifiable {
-    case title, artist, recentlyAdded
+    case title, artist, recentlyAdded, recentlyPlayed, mostPlayed
 
     var id: String { rawValue }
 
@@ -10,6 +10,8 @@ enum LibrarySort: String, CaseIterable, Identifiable {
         case .title: return "Title"
         case .artist: return "Artist"
         case .recentlyAdded: return "Recently added"
+        case .recentlyPlayed: return "Recently played"
+        case .mostPlayed: return "Most played"
         }
     }
 }
@@ -50,7 +52,8 @@ enum LibraryQuery {
         }
     }
 
-    static func sort(_ tracks: [Track], by sort: LibrarySort) -> [Track] {
+    /// `stats` only matters for the two play-history sorts; songs never played come last, by title.
+    static func sort(_ tracks: [Track], by sort: LibrarySort, stats: [String: PlayStat] = [:]) -> [Track] {
         tracks.sorted { a, b in
             switch sort {
             case .title:
@@ -62,6 +65,18 @@ enum LibraryQuery {
                 return ordered(a.displayTitle, b.displayTitle, tiebreak: a.id < b.id)
             case .recentlyAdded:
                 if a.dateAdded != b.dateAdded { return a.dateAdded > b.dateAdded }
+                return ordered(a.displayTitle, b.displayTitle, tiebreak: a.id < b.id)
+            case .recentlyPlayed:
+                switch (stats[a.id]?.lastPlayed, stats[b.id]?.lastPlayed) {
+                case let (x?, y?) where x != y: return x > y
+                case (.some, .none): return true
+                case (.none, .some): return false
+                default: return ordered(a.displayTitle, b.displayTitle, tiebreak: a.id < b.id)
+                }
+            case .mostPlayed:
+                let playsA = stats[a.id]?.plays ?? 0
+                let playsB = stats[b.id]?.plays ?? 0
+                if playsA != playsB { return playsA > playsB }
                 return ordered(a.displayTitle, b.displayTitle, tiebreak: a.id < b.id)
             }
         }
