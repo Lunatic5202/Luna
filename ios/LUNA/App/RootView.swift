@@ -10,6 +10,9 @@ struct RootView: View {
 
     @State private var showImporter = false
     @State private var showNowPlaying = false
+    @State private var showWelcome = false
+    @State private var showAbout = false
+    @AppStorage("onboarding.seen") private var onboardingSeen = false
 
     private var palette: LunaPalette { theme.palette }
 
@@ -40,6 +43,19 @@ struct RootView: View {
         .task(id: player.currentTrack?.id) {
             let track = player.currentTrack
             await theme.update(for: track, url: track.flatMap { library.url(for: $0) })
+        }
+        .onAppear {
+            if !onboardingSeen { showWelcome = true }
+        }
+        .fullScreenCover(isPresented: $showWelcome) {
+            OnboardingView(palette: palette, isFirstRun: true) {
+                onboardingSeen = true
+                showWelcome = false
+            }
+        }
+        .sheet(isPresented: $showAbout) {
+            OnboardingView(palette: palette, isFirstRun: false) { showAbout = false }
+                .presentationDragIndicator(.visible)
         }
         .fileImporter(
             isPresented: $showImporter,
@@ -82,6 +98,16 @@ struct RootView: View {
                 .tracking(6)
                 .foregroundStyle(palette.primary.color)
             Spacer()
+            Button {
+                showAbout = true
+            } label: {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(palette.onBackground.color)
+                    .frame(width: 44, height: 44)
+                    .background(Color.white.opacity(0.08), in: Circle())
+            }
+            .accessibilityLabel("About LUNA and privacy")
             Button {
                 showImporter = true
             } label: {
