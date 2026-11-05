@@ -35,6 +35,12 @@ final class PlayStatsStore: ObservableObject {
         save()
     }
 
+    func clearAll() {
+        guard !stats.isEmpty else { return }
+        stats = [:]
+        save()
+    }
+
     /// For a track deleted from the library.
     func forget(_ trackID: String) {
         guard stats.removeValue(forKey: trackID) != nil else { return }

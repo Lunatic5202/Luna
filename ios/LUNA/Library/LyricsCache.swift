@@ -85,6 +85,13 @@ final class LyricsCache {
         trimAndSave()
     }
 
+    /// Forgets every saved lyric and rewrites the file empty.
+    func clear() {
+        entries = [:]
+        guard let fileURL, let data = try? JSONEncoder().encode(entries) else { return }
+        try? data.write(to: fileURL, options: .atomic)
+    }
+
     // MARK: - Persistence
 
     private func trimAndSave() {

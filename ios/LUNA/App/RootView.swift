@@ -7,6 +7,8 @@ struct RootView: View {
     @EnvironmentObject private var player: PlaybackCoordinator
     @EnvironmentObject private var theme: PaletteStore
     @EnvironmentObject private var favorites: FavoritesStore
+    @EnvironmentObject private var combos: ComboStore
+    @EnvironmentObject private var playStats: PlayStatsStore
 
     @State private var showImporter = false
     @State private var showNowPlaying = false
@@ -54,7 +56,11 @@ struct RootView: View {
             }
         }
         .sheet(isPresented: $showAbout) {
-            OnboardingView(palette: palette, isFirstRun: false) { showAbout = false }
+            SettingsView(palette: palette) { showAbout = false }
+                .environmentObject(library)
+                .environmentObject(favorites)
+                .environmentObject(combos)
+                .environmentObject(playStats)
                 .presentationDragIndicator(.visible)
         }
         .fileImporter(
@@ -101,13 +107,13 @@ struct RootView: View {
             Button {
                 showAbout = true
             } label: {
-                Image(systemName: "info.circle")
+                Image(systemName: "gearshape")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(palette.onBackground.color)
                     .frame(width: 44, height: 44)
                     .background(Color.white.opacity(0.08), in: Circle())
             }
-            .accessibilityLabel("About LUNA and privacy")
+            .accessibilityLabel("Settings")
             Button {
                 showImporter = true
             } label: {
