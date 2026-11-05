@@ -1,12 +1,14 @@
 # LUNA for iOS — Development Plan
 
-> **Status:** iOS 0.1 in progress; project scaffold, CI and unit-test baseline are in, playback is not  
+> **Status:** iOS 0.2 in progress. Import and playback, the library (search, sort, Songs/Albums/Artists/Combos, favorites), queue, sleep timer, adaptive palette, lyrics and a first-launch privacy screen are merged and pass simulator CI. Nothing has been run on a physical iPhone. Visualizer, equalizer, folders and a settings screen are not built.  
 > **Platform:** iPhone first  
 > **Parity target:** full LUNA feature parity, implemented with native Apple frameworks  
 > **UI:** SwiftUI · **Language:** Swift  
 > **Build environment:** GitHub-hosted macOS CI initially; no local Mac is currently available
 
-This document is the source of truth for the iOS track. It is a plan, not a statement that an iOS app, Xcode project, or iOS build already exists.
+This document is the source of truth for the iOS track.
+
+**How to read the checkboxes:** a checked box means the feature is merged and covered by simulator CI (unit tests, plus a compile check for UI-only code). It does not mean it has been verified on a physical iPhone; that is tracked separately under "Physical iPhone test". Notes in brackets say what is and is not done.
 
 ## Product goal
 
@@ -116,36 +118,36 @@ This is a proposed layout, not an existing directory tree. Adjust it to the proj
 
 ### Foundation and onboarding
 
-- [ ] SwiftUI app shell, navigation, app icon, launch experience, and LUNA typography. (Shell, palette tokens and a placeholder icon are in; navigation, launch screen and typography are not.)
-- [ ] Permission/onboarding explanations before requesting media-library access.
-- [ ] Files picker for importing audio and selecting folders.
+- [ ] SwiftUI app shell, navigation, app icon, launch experience, and LUNA typography. (Shell, palette tokens, placeholder icon and the first-launch welcome screen are in; a launch animation, final icon and LUNA typography are not.)
+- [ ] Permission/onboarding explanations before requesting media-library access. (The welcome/privacy screen is in. Media & Apple Music access is not built, so nothing is requested yet.)
+- [ ] Files picker for importing audio and selecting folders. (Importing files is in; folder selection is not.)
 - [ ] Clear source labels so users know whether a track came from Files or the synced media library.
-- [ ] Offline-first behavior and a privacy explanation.
+- [x] Offline-first behavior and a privacy explanation.
 
 ### Library
 
-- [ ] Songs, Albums, Artists, and Folders views where the source supports them.
-- [ ] Search by title, artist, and album.
-- [ ] Sorting and recently added/played behavior.
-- [ ] Favorites and user-created playlists/Combos.
-- [ ] Duplicate/missing metadata handling and empty/error states.
+- [ ] Songs, Albums, Artists, and Folders views where the source supports them. (Songs, Albums, Artists and Combos are in; Folders are not.)
+- [x] Search by title, artist, and album.
+- [ ] Sorting and recently added/played behavior. (Sort by title, artist and recently added is in; recently played and most played are not.)
+- [x] Favorites and user-created playlists/Combos.
+- [ ] Duplicate/missing metadata handling and empty/error states. (Empty, no-match and no-favorites states and "Unknown" fallbacks are in; duplicate-import handling has not been checked.)
 - [ ] Efficient scanning/indexing without blocking the UI.
 
 ### Playback
 
-- [ ] Reliable local playback and queue management.
-- [ ] Mini-player and full-screen Now Playing.
-- [ ] Seek, shuffle, repeat, previous/next, and queue reorder/remove/clear.
-- [ ] Background playback, lock-screen and Control Center metadata/controls.
-- [ ] Headphone/Bluetooth remote controls, audio interruptions, and route changes.
-- [ ] Sleep timer.
-- [ ] Supported-format handling and clear unsupported/protected-file errors.
+- [x] Reliable local playback and queue management.
+- [x] Mini-player and full-screen Now Playing.
+- [x] Seek, shuffle, repeat, previous/next, and queue reorder/remove/clear.
+- [x] Background playback, lock-screen and Control Center metadata/controls.
+- [x] Headphone/Bluetooth remote controls, audio interruptions, and route changes.
+- [x] Sleep timer. (An in-app timer: it runs while audio plays in the background but cannot fire if iOS suspends the app.)
+- [ ] Supported-format handling and clear unsupported/protected-file errors. (Unplayable files are rejected at import with a message; protected-file detection is not done.)
 
 ### LUNA visual identity
 
-- [ ] Adaptive album-art palette extraction and neutral fallback.
-- [ ] Bounded artwork and palette caches.
-- [ ] Smooth artwork and color transitions.
+- [x] Adaptive album-art palette extraction and neutral fallback.
+- [x] Bounded artwork and palette caches.
+- [ ] Smooth artwork and color transitions. (The palette cross-fades; artwork transitions are not done.)
 - [ ] Native-material/glass-inspired controls, restrained highlights, and accessible contrast.
 - [ ] Artwork-driven Now Playing layout designed for iPhone safe areas and Dynamic Island/device variations.
 - [ ] Motion settings and reduced-motion support.
@@ -155,12 +157,12 @@ This is a proposed layout, not an existing directory tree. Adjust it to the proj
 - [ ] Playback-signal visualizer without microphone recording.
 - [ ] Equalizer/DSP feasibility spike and source compatibility matrix.
 - [ ] Equalizer UI and presets for sources where LUNA controls the audio render path.
-- [ ] Lyrics lookup and local caching with metadata-only network requests.
+- [x] Lyrics lookup and local caching with metadata-only network requests. (LRCLIB; tested against scripted responses, not the live service.)
 - [ ] Evaluate gapless playback, crossfade, and playback speed against supported sources.
 
 ### Quality and release
 
-- [ ] Unit tests for queue, persistence, library indexing, palette fallback/cache, and lyrics caching.
+- [x] Unit tests for queue, persistence, library indexing, palette fallback/cache, and lyrics caching. (The palette store's own cache is not covered.)
 - [ ] UI tests for onboarding, library, playback, queue, and settings.
 - [ ] Simulator test matrix across supported iPhone sizes and iOS versions.
 - [ ] Physical iPhone test for audio routes, lock screen, background playback, imports, and interruptions.
@@ -172,31 +174,31 @@ This is a proposed layout, not an existing directory tree. Adjust it to the proj
 
 ### iOS 0.1 — Foundation
 
-- [ ] Repository/project scaffold and macOS CI.
-- [ ] SwiftUI app shell and design tokens.
-- [ ] Files import and synced-library authorization spike.
-- [ ] Playback-engine feasibility spike and architecture decision record.
-- [ ] Basic local file playback and Now Playing metadata.
-- [ ] Unit-test baseline.
+- [x] Repository/project scaffold and macOS CI.
+- [x] SwiftUI app shell and design tokens.
+- [ ] Files import and synced-library authorization spike. (Files import is in; the synced-library spike is not.)
+- [ ] Playback-engine feasibility spike and architecture decision record. (AVPlayer is in use; no written decision record yet.)
+- [x] Basic local file playback and Now Playing metadata.
+- [x] Unit-test baseline.
 
 **Exit gate:** repeatable CI build; a user can import a supported audio file and play it in the foreground; source-access lifecycle is safe.
 
 ### iOS 0.2 — Core Player
 
-- [ ] Library indexing, songs/albums/artists/folders.
-- [ ] Playback queue, shuffle/repeat, mini-player, and full-screen player.
-- [ ] Background playback, lock-screen controls, and route/interruption handling.
-- [ ] Persistence for favorites, playlists, and settings.
-- [ ] Artwork loading and adaptive palette.
+- [ ] Library indexing, songs/albums/artists/folders. (Songs, albums and artists are in; folders are not.)
+- [x] Playback queue, shuffle/repeat, mini-player, and full-screen player.
+- [x] Background playback, lock-screen controls, and route/interruption handling.
+- [x] Persistence for favorites, playlists, and settings.
+- [x] Artwork loading and adaptive palette.
 
 **Exit gate:** the main local-listening workflow works in simulator and on a physical iPhone.
 
 ### iOS 0.3 — LUNA Experience
 
-- [ ] Lyrics and caching.
+- [x] Lyrics and caching.
 - [ ] Playback visualizer.
 - [ ] Equalizer/DSP where source path supports it.
-- [ ] Sleep timer and complete settings.
+- [ ] Sleep timer and complete settings. (The sleep timer is in; there is no settings screen yet.)
 - [ ] Refined transitions, glass-inspired surfaces, accessibility, and performance.
 
 **Exit gate:** feature parity gaps are documented; all advertised features work on supported source types.
