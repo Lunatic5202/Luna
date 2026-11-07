@@ -198,7 +198,7 @@ This is a proposed layout, not an existing directory tree. Adjust it to the proj
 - [x] Lyrics and caching.
 - [ ] Playback visualizer.
 - [ ] Equalizer/DSP where source path supports it.
-- [ ] Sleep timer and complete settings. (The sleep timer is in; there is no settings screen yet.)
+- [ ] Sleep timer and complete settings. (The sleep timer and a basic settings screen are in: library counts, clear lyrics cache and play history, version, privacy. Playback and equalizer settings are not, since those features are not built.)
 - [ ] Refined transitions, glass-inspired surfaces, accessibility, and performance.
 
 **Exit gate:** feature parity gaps are documented; all advertised features work on supported source types.

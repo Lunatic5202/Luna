@@ -182,3 +182,37 @@ final class PlayHistorySortTests: XCTestCase {
         XCTAssertEqual(LibraryQuery.sort(tracks.reversed(), by: .mostPlayed).map(\.id), ["a", "b", "c", "d"])
     }
 }
+
+@MainActor
+final class SettingsSupportTests: XCTestCase {
+    private func tempFile() -> URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("luna-settings-\(UUID().uuidString).json")
+    }
+
+    func testClearingLyricsEmptiesTheCacheAndTheFile() {
+        let file = tempFile()
+        defer { try? FileManager.default.removeItem(at: file) }
+        let cache = LyricsCache(fileURL: file)
+        cache.storeAvailable("k", text: "words", synced: false)
+        cache.clear()
+        XCTAssertTrue(cache.entries.isEmpty)
+        XCTAssertTrue(LyricsCache(fileURL: file).entries.isEmpty)
+    }
+
+    func testClearingPlayHistoryPersists() {
+        let file = tempFile()
+        defer { try? FileManager.default.removeItem(at: file) }
+        let store = PlayStatsStore(fileURL: file)
+        store.recordPlay("a")
+        store.clearAll()
+        XCTAssertTrue(store.stats.isEmpty)
+        XCTAssertTrue(PlayStatsStore(fileURL: file).stats.isEmpty)
+    }
+
+    func testVersionStringFormats() {
+        XCTAssertEqual(AppInfo.versionString(short: "0.1.0", build: "7"), "0.1.0 (7)")
+        XCTAssertEqual(AppInfo.versionString(short: "0.1.0", build: nil), "0.1.0")
+        XCTAssertEqual(AppInfo.versionString(short: "0.1.0", build: " "), "0.1.0")
+        XCTAssertEqual(AppInfo.versionString(short: nil, build: "7"), "unknown (7)")
+    }
+}
