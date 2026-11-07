@@ -26,3 +26,10 @@
 - [ ] Check screen-reader labels for library rows, search, sorting, lyrics, and player controls.
 - [ ] Increase system font size and confirm key controls and track names remain usable.
 - [ ] Review contrast with varied album art and confirm the color transitions and motion remain comfortable.
+
+## iOS unsigned IPA (attached to tagged releases)
+
+- [ ] The tag is plain `vX.Y.Z` (no suffix such as `-rc1`): the tag becomes the iOS `MARKETING_VERSION`, which must be numeric.
+- [ ] The `ios-unsigned-ipa` job succeeds and the release shows `LUNA-<tag>-unsigned.ipa` plus its `.sha256`.
+- [ ] Sideload the IPA onto a physical iPhone (AltStore/Sideloadly) and confirm it launches. Simulator CI does not prove this.
+- [ ] Release notes state that the IPA is unsigned, that free Apple ID signing expires after 7 days, and that iOS has not been verified on every device.
