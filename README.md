@@ -8,7 +8,7 @@
 
 *A glassy, colour-shifting, offline-first music player for the music already on your devices.*
 
-[**Download**](#-download) &nbsp;•&nbsp; [**Screenshots**](#-showcase) &nbsp;•&nbsp; [**Features**](#-features) &nbsp;•&nbsp; [**Build**](#-build-from-source) &nbsp;•&nbsp; [**Roadmap**](docs/ROADMAP.md) &nbsp;•&nbsp; [**TODO**](docs/TODO.md) &nbsp;•&nbsp; [**iOS plan**](docs/IOS.md) &nbsp;•&nbsp; [**Under the hood**](#-under-the-hood)
+[**Download**](#-download) &nbsp;•&nbsp; [**Screenshots**](#-showcase) &nbsp;•&nbsp; [**Features**](#-features) &nbsp;•&nbsp; [**Build**](#-build-from-source) &nbsp;•&nbsp; [**Roadmap**](docs/ROADMAP.md) &nbsp;•&nbsp; [**TODO**](docs/TODO.md) &nbsp;•&nbsp; [**iPhone install**](docs/IOS_INSTALL.md) &nbsp;•&nbsp; [**iOS plan**](docs/IOS.md) &nbsp;•&nbsp; [**Under the hood**](#-under-the-hood)
 
 <br>
 
@@ -45,7 +45,7 @@
 ## Platform status
 
 - **Android:** current released application. See [releases](https://github.com/Lunatic5202/Luna/releases).
-- **iPhone:** native SwiftUI application in development. The project currently has a foundation scaffold; playback and a distributable iOS build are not complete. The intended distribution route is an **unsigned IPA attached to GitHub Releases**, which each user signs with their own Apple ID. No App Store or TestFlight distribution is planned.
+- **iPhone:** native SwiftUI app, available as an **unsigned IPA** on GitHub Releases (first build: v1.1.0). It passes simulator CI but has not been verified on every device. You sign it with your own Apple ID; free signing expires after 7 days. See the [iPhone install guide](docs/IOS_INSTALL.md). No App Store or TestFlight distribution is planned.
 
 The iOS track will use native Apple frameworks and target feature parity while respecting iOS file-access, audio-source, and distribution constraints. The Android app remains independently maintained.
 
@@ -115,6 +115,12 @@ The iOS track will use native Apple frameworks and target feature parity while r
 
 > [!TIP]
 > Want automatic updates? Add `https://github.com/Lunatic5202/Luna` to [Obtainium](https://obtainium.imranr.dev/) and it installs each new release for you.
+
+### iPhone
+
+1. Download `LUNA-vX.Y.Z-unsigned.ipa` from the [latest release](https://github.com/Lunatic5202/Luna/releases/latest).
+2. Sign and install it with AltStore or Sideloadly using your own Apple ID (iOS 17+, Developer Mode on).
+3. Free signing expires after 7 days and needs a refresh. Full steps: [iPhone install guide](docs/IOS_INSTALL.md).
 
 **Permissions on first launch**
 

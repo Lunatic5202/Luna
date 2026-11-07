@@ -1,6 +1,6 @@
 # LUNA for iOS — Development Plan
 
-> **Status:** iOS 0.2 in progress. Import and playback, the library (search, sort, Songs/Albums/Artists/Combos, favorites), queue, sleep timer, adaptive palette, lyrics and a first-launch privacy screen are merged and pass simulator CI. Nothing has been run on a physical iPhone. Visualizer, equalizer, folders and a settings screen are not built.  
+> **Status:** iOS 0.2 in progress; first unsigned IPA published with v1.1.0 (install guide: IOS_INSTALL.md). Import and playback, the library (search, sort, Songs/Albums/Artists/Combos, favorites), queue, sleep timer, adaptive palette, lyrics and a first-launch privacy screen are merged and pass simulator CI. Nothing has been run on a physical iPhone. Visualizer, equalizer, folders and a settings screen are not built.  
 > **Platform:** iPhone first  
 > **Parity target:** full LUNA feature parity, implemented with native Apple frameworks  
 > **UI:** SwiftUI · **Language:** Swift  
@@ -174,7 +174,7 @@ This is a proposed layout, not an existing directory tree. Adjust it to the proj
 - [ ] Physical iPhone test for audio routes, lock screen, background playback, imports, and interruptions.
 - [ ] VoiceOver, Dynamic Type, contrast, and reduced-motion audit.
 - [ ] Privacy manifest/declaration and public privacy documentation review.
-- [ ] Unsigned IPA packaged and attached to a GitHub Release with checksum and clear sideloading instructions.
+- [x] Unsigned IPA packaged and attached to a GitHub Release with checksum and clear sideloading instructions. [v1.1.0 published; guide in docs/IOS_INSTALL.md; not yet installed on a device]
 - [ ] Physical-device installation and playback validation with a user-owned free Apple ID.
 
 ## Milestones
@@ -215,7 +215,7 @@ This is a proposed layout, not an existing directory tree. Adjust it to the proj
 - [ ] Full regression and device matrix.
 - [ ] Physical-device sideload test using a personal free Apple ID.
 - [ ] Privacy, signing instructions, screenshots, release notes, and support materials.
-- [ ] Publish the unsigned IPA and checksum alongside the Android APK on GitHub Releases.
+- [x] Publish the unsigned IPA and checksum alongside the Android APK on GitHub Releases. [v1.1.0]
 
 **Exit gate:** no known critical playback/data-loss issue; sideload installation and refresh instructions verified; release assets and feature claims match the tested build.
 
