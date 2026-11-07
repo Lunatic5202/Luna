@@ -61,11 +61,17 @@ Do not promise access to every Apple Music catalog track or DRM-protected item. 
 - The visualizer must react to LUNA's own playback signal. It must not request microphone access merely to visualize music.
 - Treat gapless playback, crossfade, and equalizer behavior as source- and device-dependent until tested.
 
-### Signing and distribution
+### GitHub-only sideload distribution
 
-- Local development and simulator builds can begin through macOS CI without publishing anything.
-- TestFlight and App Store distribution require Apple signing/provisioning and the appropriate Apple Developer Program access. Do not purchase membership until the team is ready to use those distribution capabilities.
-- Never commit signing certificates, private keys, provisioning profiles, API keys, or App Store Connect credentials.
+LUNA will not use the App Store or TestFlight as its distribution channel. The intended public release format is an **unsigned IPA attached to each GitHub Release**.
+
+- GitHub-hosted macOS CI builds the iOS app with code signing disabled and packages the resulting `.app` as `Payload/LUNA.app` inside an `.ipa` archive.
+- An unsigned IPA is a build artifact, not an install-ready app. Each iPhone user must sign it with their own Apple ID using a compatible sideloading tool before installation.
+- With a free Apple account (Personal Team provisioning), the installed app generally needs to be refreshed/re-signed every seven days. Free provisioning also has Apple's device/app limits.
+- Common sideloading utilities such as Sideloadly/AltStore have their own desktop and device requirements; verify current OS support. Do not promise a universal one-tap install or a phone-only installation path.
+- The repository must never contain a shared developer certificate, private key, provisioning profile, Apple ID, or signing credentials. Users sign their own copies locally.
+- Attach the unsigned IPA and a SHA-256 checksum to the same GitHub Release as the Android APK. Label the asset clearly as unsigned and include the signing/expiry caveat in release notes.
+- Simulator CI is not a substitute for physical-device testing. Validate installation, provisioning, audio background modes, file imports, and playback on a real iPhone before calling an iOS release stable.
 
 ## Proposed iOS architecture
 
@@ -167,8 +173,9 @@ This is a proposed layout, not an existing directory tree. Adjust it to the proj
 - [ ] Simulator test matrix across supported iPhone sizes and iOS versions.
 - [ ] Physical iPhone test for audio routes, lock screen, background playback, imports, and interruptions.
 - [ ] VoiceOver, Dynamic Type, contrast, and reduced-motion audit.
-- [ ] Privacy manifest/declaration and App Store metadata review where applicable.
-- [ ] Signed archive, TestFlight beta, crash/feedback review, and App Store submission.
+- [ ] Privacy manifest/declaration and public privacy documentation review.
+- [ ] Unsigned IPA packaged and attached to a GitHub Release with checksum and clear sideloading instructions.
+- [ ] Physical-device installation and playback validation with a user-owned free Apple ID.
 
 ## Milestones
 
@@ -203,14 +210,14 @@ This is a proposed layout, not an existing directory tree. Adjust it to the proj
 
 **Exit gate:** feature parity gaps are documented; all advertised features work on supported source types.
 
-### iOS 1.0 — iPhone release
+### iOS 1.0 — GitHub release
 
 - [ ] Full regression and device matrix.
-- [ ] TestFlight beta and feedback cycle.
-- [ ] Privacy, signing, screenshots, App Store metadata, and support materials.
-- [ ] Final App Review submission and release.
+- [ ] Physical-device sideload test using a personal free Apple ID.
+- [ ] Privacy, signing instructions, screenshots, release notes, and support materials.
+- [ ] Publish the unsigned IPA and checksum alongside the Android APK on GitHub Releases.
 
-**Exit gate:** no known critical playback/data-loss issue; signed build and TestFlight validation complete; store claims match verified behavior.
+**Exit gate:** no known critical playback/data-loss issue; sideload installation and refresh instructions verified; release assets and feature claims match the tested build.
 
 ## Definition of full parity
 
@@ -232,3 +239,8 @@ Full parity means equivalent user outcomes and workflows, not identical implemen
 ---
 
 *Last reviewed: 2026-11-02. Update when the project scaffold and playback feasibility spikes are complete.*
+
+
+## GitHub IPA packaging workflow
+
+The release workflow builds the iOS target on a GitHub-hosted macOS runner with `CODE_SIGNING_ALLOWED=NO`, wraps the resulting app bundle in the standard `Payload/` IPA structure, computes a SHA-256 checksum, and uploads both files to the matching GitHub Release. This does not create a signed or universally installable IPA. Every recipient signs their own copy with their own Apple ID.

@@ -6,10 +6,12 @@ on:
     paths:
       - "ios/**"
       - ".github/workflows/ios-build.yml"
+      - ".github/workflows/release.yml"
   pull_request:
     paths:
       - "ios/**"
       - ".github/workflows/ios-build.yml"
+      - ".github/workflows/release.yml"
   workflow_dispatch:
 
 concurrency:
@@ -68,6 +70,34 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             2>&1 | tee "$RUNNER_TEMP/build.log"
 
+      - name: Build unsigned device app
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project LUNA.xcodeproj \
+            -scheme LUNA \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath "$RUNNER_TEMP/LUNA-DeviceDerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package unsigned IPA for CI validation
+        run: |
+          APP="$RUNNER_TEMP/LUNA-DeviceDerivedData/Build/Products/Release-iphoneos/LUNA.app"
+          test -d "$APP"
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/LUNA.app"
+          (cd "$RUNNER_TEMP/ipa" && ditto -c -k --sequesterRsrc --keepParent Payload "$RUNNER_TEMP/LUNA-unsigned.ipa")
+
+      - name: Upload unsigned IPA validation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LUNA-unsigned-IPA-validation
+          path: ${{ runner.temp }}/LUNA-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
       - name: Surface errors
         if: failure()
         run: |
