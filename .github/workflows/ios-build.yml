@@ -92,7 +92,7 @@ jobs:
           (cd "$RUNNER_TEMP/ipa" && ditto -c -k --sequesterRsrc --keepParent Payload "$RUNNER_TEMP/LUNA-unsigned.ipa")
 
       - name: Upload unsigned IPA validation artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: LUNA-unsigned-IPA-validation
           path: ${{ runner.temp }}/LUNA-unsigned.ipa
@@ -106,7 +106,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: LUNA-xcresult
           path: ${{ runner.temp }}/LUNA.xcresult
